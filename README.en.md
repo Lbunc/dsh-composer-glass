@@ -22,7 +22,7 @@ Toggle lives in Settings → General
 ## Features
 
 - The composer is rendered as **one uniformly translucent frosted-glass material**, not partial blur
-- A single on/off switch under **Settings → General**
+- A single on/off switch under **Settings → General**, whose choice **persists** across reloads and restarts
 
 ![Settings](images/03-settings.png)
 
@@ -42,8 +42,9 @@ Restart DSH, then enable it under **Settings → General**.
 
 ## Notes
 
-- **The switch does not persist**: it resets on page reload — persisting it
-  needs a Host-side settings namespace, which is left as a follow-up change.
+- **The switch persists**: the choice is written to the Host-side
+  `composer-glass` settings namespace (as `composer-glass.enabled` in
+  `settings.yaml`), so it survives a page reload and a DSH restart.
 - **A material, not a refractor**: the composer sits over flat colour, so
   refracting it produces no visible change. The reasoning and the measurements
   are in [docs/WHY-NOT-REFRACTION.md](docs/WHY-NOT-REFRACTION.md).

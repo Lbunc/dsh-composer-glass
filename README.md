@@ -22,7 +22,7 @@
 ## 特性
 
 - 输入框整体呈现**均匀半透明的毛玻璃材质**，而非局部磨砂
-- 在 **设置 → 通用** 中提供一键开关
+- 在 **设置 → 通用** 中提供一键开关，选择**持久保存**（刷新页面、重启 DSH 后保持）
 
 ![设置页面](images/03-settings.png)
 
@@ -41,7 +41,7 @@
 
 ## 说明
 
-- **开关不持久化**：开关状态刷新页面后会重置 —— 持久化需要 Host 侧 settings 命名空间，留作后续改动。
+- **开关会持久化**：选择写进 Host 侧 `composer-glass` settings 命名空间（落在 `settings.yaml` 的 `composer-glass.enabled`），所以刷新页面或重启 DSH 后都保持。
 - **材质，而非折射**：输入框背后是平坦纯色，折射它不会有任何可见变化。原因与实测记录见 [docs/WHY-NOT-REFRACTION.md](docs/WHY-NOT-REFRACTION.md)。
 
 ## 许可
