@@ -167,7 +167,7 @@ function findButtons(node, out = []) {
   return out
 }
 
-test('client: the shared material covers the composer, the todo dock, and the to-bottom button', async () => {
+test('client: the shared material covers the composer, todo dock, to-bottom button, and status chip', async () => {
   const scope = makeScope()
   const { styles } = await loadAndApply(scope)
   const css = styles.map((el) => el.textContent).join('\n')
@@ -175,10 +175,11 @@ test('client: the shared material covers the composer, the todo dock, and the to
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-card\]/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-testid="todo-panel"\]/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.EvIC1a_toBottom\b/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-stats\]/)
   // The todo dock is one surface for both collapsed and expanded states.
   assert.match(css, /\[data-testid="todo-panel"\]::after/)
-  // Three surfaces, each with the prefixed and unprefixed blur declaration.
-  assert.equal((css.match(/backdrop-filter:/g) || []).length, 6)
+  // Four surfaces, each with the prefixed and unprefixed blur declaration.
+  assert.equal((css.match(/backdrop-filter:/g) || []).length, 8)
 })
 
 test('client: declares settingsScope alongside slots and locale', async () => {
