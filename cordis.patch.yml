@@ -1,0 +1,12 @@
+# dsh-composer-glass — bundle patch
+#
+# Declared through package.json:
+#   "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+#
+# Loading this package as a profile layer therefore registers its plugin row
+# automatically. Do not also hand-write an `- insert:` row for this package in a
+# profile's own cordis.patch.yml — the id would be inserted twice.
+
+- insert:
+    - id: composer-glass
+      name: 'dsh-composer-glass'

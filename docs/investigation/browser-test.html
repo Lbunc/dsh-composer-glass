@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>new Function escape matrix — real browser run</title>
+<style>
+  body { font: 13px/1.5 ui-monospace, Consolas, monospace; background:#111; color:#ddd; margin:16px; }
+  h1 { font-size:15px; }
+  table { border-collapse:collapse; }
+  td, th { border:1px solid #444; padding:3px 8px; vertical-align:top; }
+  .ok  { color:#6ee7a0; }
+  .bad { color:#f88; }
+  #report { white-space:pre; }
+</style>
+</head>
+<body>
+<h1>new Function escape matrix — real Chromium measurement</h1>
+<p id="ua"></p>
+
+<!-- =====================================================================
+     A faithful copy of dsh-cordis-client-runner's evaluateClientHalf()
+     (…/dsh-cordis-client-runner/lib/client.js:152-181).
+     The parameters deliberately do NOT include document / window / fetch.
+     ===================================================================== -->
+<script>
+const DYNAMIC_CLIENT_REDIRECTS = {
+  setTimeout: 'browser timer globals are unavailable in dynamic packages.',
+  setInterval: 'browser timer globals are unavailable in dynamic packages.',
+  clearTimeout: 'browser timer globals are unavailable in dynamic packages.',
+  clearInterval: 'browser timer globals are unavailable in dynamic packages.',
+  fetch: 'network belongs to the HOST half.',
+  require: 'modules cannot be imported here.',
+};
+
+function closureTraps() {
+  const traps = {};
+  for (const [name, redirect] of Object.entries(DYNAMIC_CLIENT_REDIRECTS)) {
+    traps[name] = () => {
+      throw new Error(`${name} is not available in a dynamic client half — ${redirect}`);
+    };
+  }
+  return traps;
+}
+
+function harnessTrap() {
+  return new Proxy({}, {
+    get(_t, prop) { throw new Error(`harness.${String(prop)} belongs to the HOST half.`); },
+  });
+}
+
+const react = { createElement() { return {}; } };
+const styles = { insert() { return () => {}; } };
+const hostStub = { call: async () => null };
+
+let docReads = 0;
+// Count real document reads performed by the evaluated code, AFTER the
+// page itself has loaded, so page-boot reads do not pollute the count.
+function startCounting() {
+  const realDoc = document;
+  Object.defineProperty(window, 'document', {
+    configurable: true,
+    get() { docReads += 1; return realDoc; },
+  });
+}
+
+/* The exact construction under test. */
+function evaluateClientHalf(clientCode) {
+  const traps = closureTraps();
+  const parameters = [
+    'React', 'console', 'styles', 'host', 'harness',
+    ...Object.keys(traps),
+    'process', 'Buffer',
+  ];
+  const closure = new Function(...parameters, `return (async () => {\n${clientCode}\n})()`);
+  return closure(
+    react, console, styles, hostStub, harnessTrap(),
+    ...Object.values(traps), void 0, void 0,
+  );
+}
+
+/* ---- probes that need to be defined OUTSIDE the evaluated code ---------- */
+// A real DOM node, to test whether a passed reference leaks its document.
+const realNode = document.createElement('div');
+document.body.appendChild(realNode);
+
+const MATRIX = [
+  ['A1  bare document',
+   `return typeof document !== 'undefined' ? document === window.document : 'undefined';`],
+
+  ['A2  bare window',
+   `return window === globalThis;`],
+
+  ['A3  globalThis.document',
+   `return globalThis.document === window.document;`],
+
+  ['A4  globalThis["doc"+"ument"]',
+   `return globalThis['doc' + 'ument'] === window.document;`],
+
+  ['A5  sloppy this in IIFE',
+   `return (function () { return this })() === globalThis;`],
+
+  ['A6  this.document in IIFE',
+   `return (function () { return this.document })() === window.document;`],
+
+  ['A7  async-wrapper this',
+   `return this === undefined ? 'undefined' : (this === globalThis ? 'globalThis' : typeof this);`],
+
+  ['A8  (function(){}).constructor',
+   `return (function () {}).constructor('return document')() === window.document;`],
+
+  ['A9  AsyncFunction .constructor',
+   `const AF = Object.getPrototypeOf(async function(){}).constructor;
+    const r = AF('return document')();
+    return (r instanceof Promise) ? 'AsyncFunction->Promise (wrong ctor)' : 'unexpected';`],
+
+  ['A10 (async()=>{}).constructor',
+   `const AF = (async () => {}).constructor;
+    const r = AF('return document')();
+    return (r instanceof Promise) ? 'AsyncFunction->Promise (wrong ctor)' : 'unexpected';`],
+
+  ['A11 Function.prototype.constructor',
+   `return Function.prototype.constructor('return document')() === window.document;`],
+
+  ['A12 ({}).constructor.constructor',
+   `return ({}).constructor.constructor('return document')() === window.document;`],
+
+  ['A13 (0).constructor.constructor',
+   `return (0).constructor.constructor('return document')() === window.document;`],
+
+  ['A14 Reflect.construct(Function)',
+   `return Reflect.construct(Function, ['return document'])() === window.document;`],
+
+  ['A15 direct eval',
+   `return eval('document') === window.document;`],
+
+  ['A16 indirect eval (0,eval)',
+   `return (0, eval)('document') === window.document;`],
+
+  ['A17 globalThis.eval',
+   `return globalThis.eval('document') === window.document;`],
+
+  ['T1  bare fetch is shadowed',
+   `try { fetch; return 'NO THROW'; } catch (e) { return 'threw: ' + e.message.slice(0, 30); }`],
+
+  ['T2  globalThis.fetch bypasses shadow',
+   `return typeof globalThis.fetch;`],
+
+  ['T3  window.fetch bypasses shadow',
+   `return typeof window.fetch;`],
+
+  ['T4  harness Proxy get throws',
+   `try { harness.foo; return 'NO THROW'; } catch (e) { return 'threw'; }`],
+
+  ['T5  Proxy trap does not touch globalThis',
+   `return globalThis.document === window.document;`],
+
+  ['T6  shadow param is writable',
+   `fetch = () => 'replaced'; return fetch();`],
+
+  ['X1  process recovered via Function',
+   `return typeof (function(){}).constructor('return process')();`],
+
+  ['X2  Buffer recovered via Function',
+   `return typeof (function(){}).constructor('return Buffer')();`],
+
+  ['X3  arguments.callee in sloppy inner fn',
+   `return typeof (function(){ return arguments.callee })();`],
+
+  ['X4  caller chain',
+   `function outer(){ return inner(); }
+    function inner(){ return String(inner.caller && inner.caller.name); }
+    return outer();`],
+
+  ['X5  document via passed object ref',
+   `const passed = window.__passedNode;
+    return passed && passed.ownerDocument === window.document;`],
+
+  ['X6  new (fn).constructor(...)',
+   `return new ((function(){}).constructor)('return document')().location
+            ? 'document has location' : 'no location';`],
+
+  ['X7  dynamic import()',
+   `try { await import('data:text/javascript,export default 1'); return 'import OK'; }
+    catch (e) { return e.constructor.name + ': ' + String(e.message).slice(0, 40); }`],
+
+  ['X8  canvas via bare document',
+   `const c = document.createElement('canvas');
+    c.width = 2; c.height = 2;
+    const g = c.getContext('2d');
+    if (!g) return 'no 2d context';
+    g.fillStyle = '#ff0000'; g.fillRect(0, 0, 2, 2);
+    const d = g.getImageData(0, 0, 1, 1).data;
+    return 'pixel=' + [...d].join(',');`],
+
+  ['X9  canvas via globalThis route',
+   `const c = globalThis.document.createElement('canvas');
+    c.width = 4; c.height = 4;
+    const g = c.getContext('2d');
+    g.fillStyle = '#00ff00'; g.fillRect(0, 0, 4, 4);
+    const d = g.getImageData(1, 1, 1, 1).data;
+    return 'pixel=' + [...d].join(',');`],
+
+  ['X10 WebGL context',
+   `const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    if (!gl) return 'no webgl';
+    return 'WebGL OK: ' + gl.getParameter(gl.VERSION);`],
+
+  ['X11 toDataURL round-trip',
+   `const c = document.createElement('canvas');
+    c.width = 8; c.height = 8;
+    const g = c.getContext('2d');
+    g.fillStyle = '#0000ff'; g.fillRect(0, 0, 8, 8);
+    return c.toDataURL('image/png').slice(0, 22) + '…';`],
+];
+
+/* ---- run everything, render a report into the DOM --------------------- */
+const lines = [];
+const pad = (s, n) => String(s).padEnd(n);
+const W = 36;
+
+async function main() {
+  document.getElementById('ua').textContent = navigator.userAgent;
+
+  // Hand a real DOM node to the sandbox indirectly (simulating slot props).
+  window.__passedNode = realNode;
+
+  startCounting();
+
+  lines.push('=== real-browser new Function escape matrix ===');
+  lines.push('');
+  let reached = 0, threw = 0;
+  for (const [label, code] of MATRIX) {
+    let verdict;
+    const before = docReads;
+    try {
+      const value = await evaluateClientHalf(code);
+      reached += 1;
+      verdict = 'VALUE  ' + JSON.stringify(value);
+    } catch (error) {
+      threw += 1;
+      verdict = 'THREW  ' + error.constructor.name + ': ' + String(error.message).slice(0, 70);
+    }
+    lines.push(pad(label, W) + verdict + '   [docReads+' + (docReads - before) + ']');
+  }
+  lines.push('');
+  lines.push(`${MATRIX.length} probes: ${reached} returned a value, ${threw} threw.`);
+  lines.push(`total real document getter reads triggered: ${docReads}`);
+  lines.push('');
+  lines.push('CANVAS CAPABILITY (measured, same-origin about:blank-ish doc):');
+  lines.push('  see X8-X11 above.');
+
+  const pre = document.createElement('pre');
+  pre.id = 'report';
+  pre.textContent = lines.join('\n');
+  document.body.appendChild(pre);
+  document.title = 'DONE';
+}
+
+main();
+</script>
+</body>
+</html>

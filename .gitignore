@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build scratch
+dist/
+*.tgz
+
+# npm cache, redirected into the workspace because the system cache directory is
+# not writable in this environment. Only needed for the local `npm pack` /
+# `npm publish` dry runs.
+.npm-cache/

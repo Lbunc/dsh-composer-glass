@@ -1,0 +1,53 @@
+{
+  "name": "dsh-composer-glass",
+  "version": "0.1.0",
+  "description": "DSH plugin: turn the composer into a uniformly translucent frosted-glass pane, with an on/off preference row in Settings → General.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "images",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dsh",
+    "cordis",
+    "glass",
+    "frosted-glass",
+    "glassmorphism",
+    "composer",
+    "theme",
+    "ui"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lbunc/dsh-composer-glass.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "@deepseek-ai/dsh-client-locale": "^0.1.5-rc.1"
+  },
+  "license": "MIT"
+}
