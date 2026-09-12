@@ -182,6 +182,17 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.equal((css.match(/backdrop-filter:/g) || []).length, 8)
 })
 
+test('client: the shipped chrome is restored when the preference is OFF', async () => {
+  const scope = makeScope()
+  const { styles } = await loadAndApply(scope)
+  const css = styles.map((el) => el.textContent).join('\n')
+  // Clearing the opaque chrome is part of the glass, not a permanent override:
+  // ungated, it kept the message flow running to the bottom of the seat with the
+  // preference OFF instead of letting the shipped fade mask it again.
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.wSkVaW_composerSeat \{ background: none !important; \}/)
+  assert.doesNotMatch(css, /(^|\n)\.wSkVaW_/)
+})
+
 test('client: declares settingsScope alongside slots and locale', async () => {
   const scope = makeScope()
   const { mod } = await loadAndApply(scope)
