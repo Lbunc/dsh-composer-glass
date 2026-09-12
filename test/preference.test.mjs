@@ -87,6 +87,16 @@ function makeReact() {
 }
 
 /**
+ * A primitives stand-in. `Menu` renders only its anchor and exposes `onSelect`
+ * on the element tree; the popup itself belongs to DSH and is not exercised.
+ */
+function makePrimitives() {
+  const Menu = function Menu(props) { return props.anchor }
+  const IconChevronDownOutline14 = function IconChevronDownOutline14() { return null }
+  return { Menu, IconChevronDownOutline14 }
+}
+
+/**
  * Load one fresh instance of the browser half and apply it against `scope`.
  * @returns the captured registrations, the fake DOM, and the bound scope spec.
  */
@@ -104,8 +114,10 @@ async function loadAndApply(scope) {
   await import(url)
   assert.ok(definition, 'the browser half must call window.__ModuleLoader__.load')
 
+  const primitives = makePrimitives()
   const mod = definition.factory((spec) => {
     if (spec === 'react') return makeReact()
+    if (spec === '@deepseek-ai/dsh-client-ui-primitives') return primitives
     throw new Error('unexpected require: ' + spec)
   })
 
@@ -132,7 +144,7 @@ async function loadAndApply(scope) {
     },
   }
   mod.apply(ctx)
-  return { mod, doc, registered, bound, styles: doc.styles }
+  return { mod, doc, registered, bound, styles: doc.styles, primitives }
 }
 
 /** A settings scope whose snapshot the test drives by hand. */
@@ -160,11 +172,15 @@ function makeScope() {
   return scope
 }
 
-function findButtons(node, out = []) {
-  if (!node || typeof node !== 'object') return out
-  if (node.type === 'button') out.push(node)
-  for (const child of node.children || []) findButtons(child, out)
-  return out
+/** Depth-first search for the first element built from `type`. */
+function findByType(node, type) {
+  if (!node || typeof node !== 'object') return null
+  if (node.type === type) return node
+  for (const child of node.children || []) {
+    const found = findByType(child, type)
+    if (found) return found
+  }
+  return null
 }
 
 test('client: the shared material covers the composer, todo dock, to-bottom button, and status chip', async () => {
@@ -226,24 +242,28 @@ test('client: with no document yet the pane starts on and corrects on commit', a
   assert.equal(scope.writes.length, 0, 'adopting the stored value is not a write')
 })
 
-test('client: clicking the row writes the choice through the scope', async () => {
+test('client: choosing an option writes the choice through the scope', async () => {
   const scope = makeScope()
   scope.publish('ready', { enabled: true })
-  const { doc, registered } = await loadAndApply(scope)
+  const { doc, registered, primitives } = await loadAndApply(scope)
 
   const row = registered.find((entry) => entry.options.id === 'dsh-glass-pane')
   assert.ok(row, 'the Settings -> General row must be registered')
 
-  const buttons = findButtons(row.Component({ t: (key) => key }))
-  const off = buttons.find((button) => button.children[0] === 'opt.off')
-  const on = buttons.find((button) => button.children[0] === 'opt.on')
-  assert.ok(off && on)
+  const tree = row.Component({ t: (key) => key })
+  const menu = findByType(tree, primitives.Menu)
+  assert.ok(menu, 'the row must drive the shipped Menu primitive')
+  assert.deepEqual(menu.props.items, [
+    { id: 'on', label: 'opt.on' },
+    { id: 'off', label: 'opt.off' },
+  ])
+  assert.equal(menu.props.selectedId, 'on')
 
-  off.props.onClick()
+  menu.props.onSelect('off')
   assert.deepEqual(scope.writes, [['enabled', false]])
   assert.equal(doc.attributes.get('data-dsh-glass'), 'off')
 
-  on.props.onClick()
+  menu.props.onSelect('on')
   assert.deepEqual(scope.writes, [['enabled', false], ['enabled', true]])
   assert.equal(doc.attributes.get('data-dsh-glass'), 'on')
 })
