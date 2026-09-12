@@ -63,14 +63,16 @@ let importCounter = 0
 /** A minimal fake DOM; only the surfaces the plugin actually touches. */
 function makeDocument() {
   const attributes = new Map()
+  const styles = []
   return {
     attributes,
+    styles,
     documentElement: {
       setAttribute: (name, value) => attributes.set(name, String(value)),
       getAttribute: (name) => attributes.get(name),
       removeAttribute: (name) => attributes.delete(name),
     },
-    head: { appendChild: () => {} },
+    head: { appendChild: (el) => { styles.push(el) } },
     createElement: (tag) => ({ tag, dataset: {}, textContent: '', remove: () => {} }),
   }
 }
@@ -130,7 +132,7 @@ async function loadAndApply(scope) {
     },
   }
   mod.apply(ctx)
-  return { mod, doc, registered, bound }
+  return { mod, doc, registered, bound, styles: doc.styles }
 }
 
 /** A settings scope whose snapshot the test drives by hand. */
@@ -164,6 +166,20 @@ function findButtons(node, out = []) {
   for (const child of node.children || []) findButtons(child, out)
   return out
 }
+
+test('client: the shared material covers the composer, the todo dock, and the to-bottom button', async () => {
+  const scope = makeScope()
+  const { styles } = await loadAndApply(scope)
+  const css = styles.map((el) => el.textContent).join('\n')
+  // Every surface is gated by the persisted on/off attribute, never applied unconditionally.
+  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-card\]/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-testid="todo-panel"\]/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.EvIC1a_toBottom\b/)
+  // The todo dock is one surface for both collapsed and expanded states.
+  assert.match(css, /\[data-testid="todo-panel"\]::after/)
+  // Three surfaces, each with the prefixed and unprefixed blur declaration.
+  assert.equal((css.match(/backdrop-filter:/g) || []).length, 6)
+})
 
 test('client: declares settingsScope alongside slots and locale', async () => {
   const scope = makeScope()

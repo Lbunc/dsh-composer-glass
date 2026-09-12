@@ -22,6 +22,7 @@ Toggle lives in Settings → General
 ## Features
 
 - The composer is rendered as **one uniformly translucent frosted-glass material**, not partial blur
+- The same material covers the **to-do dock** above it (collapsed and expanded alike) and the floating **back-to-bottom** button
 - A single on/off switch under **Settings → General**, whose choice **persists** across reloads and restarts
 
 ![Settings](images/03-settings.png)
