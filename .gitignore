@@ -17,6 +17,9 @@ desktop.ini
 dist/
 *.tgz
 
+# Local notes and investigation records
+docs/
+
 # npm cache, redirected into the workspace because the system cache directory is
 # not writable in this environment. Only needed for the local `npm pack` /
 # `npm publish` dry runs.
