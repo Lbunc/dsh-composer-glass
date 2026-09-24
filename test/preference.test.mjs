@@ -78,7 +78,27 @@ function makeReact() {
     createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
     useState: (initial) => [initial, () => {}],
     useEffect: (effect) => effect(),
+    useReducer: (reducer, initial) => [initial, () => {}],
   }
+}
+
+/**
+ * Recursively call function components by hand (the fake React does not expand
+ * them) until every node is a host element, and flatten `children` arrays (a
+ * `.map(...)` result stays a raw array in the fake) so tree walks can descend.
+ */
+function expand(node, maxDepth = 8) {
+  if (Array.isArray(node)) return node.flatMap((child) => expand(child, maxDepth))
+  if (!node || typeof node !== 'object') return node
+  let cur = node
+  for (let depth = 0; depth < maxDepth && cur && typeof cur.type === 'function'; depth++) {
+    cur = cur.type(cur.props)
+  }
+  if (Array.isArray(cur)) return expand(cur, maxDepth)
+  if (cur && Array.isArray(cur.children)) {
+    cur.children = cur.children.flatMap((child) => expand(child, maxDepth))
+  }
+  return cur
 }
 
 /**
@@ -272,15 +292,13 @@ test('client: choosing an option writes the choice through the form', async () =
   assert.equal(summary.props.className, 'dsh-glass-cardSummary')
   assert.deepEqual(summary.children, ['card.summary'])
 
-  // The page view returns a GlassRow element; render that function component
-  // by hand (the fake React does not expand it) before searching for pills.
-  const tree = card.Component({ t: (key) => key, view: 'page' })
-  const rowTree = typeof tree.type === 'function' ? tree.type(tree.props) : tree
-  const group = findByType(rowTree, primitives.Menu)
-  assert.ok(!group, 'no Menu primitive may be used — profiles do not ship it')
-
-  const pills = collectByClass(rowTree, 'dsh-glass-pill')
-  assert.equal(pills.length, 2, 'the card must offer exactly two pill buttons')
+  // The page view is [GlassRow, GroupsPanel]; expand the GlassRow element by
+  // hand (the fake React does not) before searching for pills.
+  assert.ok(!findByType(card.Component({ t: (key) => key, view: 'page' }), primitives.Menu),
+    'no Menu primitive may be used — profiles do not ship it')
+  const pageTree = card.Component({ t: (key) => key, view: 'page' })
+  const pills = collectByClass(expand(pageTree.children[0]), 'dsh-glass-pill')
+  assert.equal(pills.length, 2, 'the row must offer exactly two pill buttons')
   assert.match(pills[0].props.className, / on$/, 'on pill starts selected')
   assert.doesNotMatch(pills[1].props.className, / on$/)
 
@@ -291,4 +309,97 @@ test('client: choosing an option writes the choice through the form', async () =
   pills[0].props.onClick()
   assert.deepEqual(form.writes, [['enabled', false], ['enabled', true]])
   assert.equal(doc.attributes.get('data-dsh-glass'), 'on')
+})
+
+test('client: the page card hosts one tuning panel per surface group', async () => {
+  const form = makeForm()
+  form.publish('ready', { enabled: true })
+  const { registered } = await loadAndApply(form)
+  const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
+  const pageTree = card.Component({ t: (key) => key, view: 'page' })
+
+  const groups = collectByClass(expand(pageTree.children[1]), 'dsh-glass-group')
+  assert.equal(groups.length, 6, 'six surface groups: card, docks, chips, toBottom, menu, plan')
+
+  const sliders = collectByClass(expand(pageTree.children[1]), 'dsh-glass-slider')
+  assert.equal(sliders.length, 24, 'four sliders (blur/tint/saturate/brightness) per group')
+
+  const resets = collectByClass(expand(pageTree.children[1]), 'dsh-glass-reset')
+  assert.equal(resets.length, 1, 'exactly one reset-to-preset button')
+})
+
+test('client: group pills and the reset write flat Config fields', async () => {
+  const form = makeForm()
+  form.publish('ready', { enabled: true })
+  const { registered } = await loadAndApply(form)
+  const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
+  const panelTree = expand(card.Component({ t: (key) => key, view: 'page' }).children[1])
+
+  // The first group box's off pill writes `<group>_on = false`.
+  const groups = collectByClass(panelTree, 'dsh-glass-group')
+  const groupPills = collectByClass(groups[0], 'dsh-glass-pill')
+  groupPills[1].props.onClick()
+  assert.deepEqual(form.writes, [['card_on', false]])
+
+  // The reset button restores every group field (6 groups x 5 fields).
+  form.writes.length = 0
+  collectByClass(panelTree, 'dsh-glass-reset')[0].props.onClick()
+  assert.equal(form.writes.length, 30)
+  assert.deepEqual(
+    form.writes.filter(([field]) => field.startsWith('card_')),
+    [
+      ['card_on', true],
+      ['card_blur', 10],
+      ['card_tint', 17],
+      ['card_saturate', 165],
+      ['card_brightness', 91],
+    ],
+    'reset restores the shipped preset'
+  )
+})
+
+test('client: a slider commit persists the value the gesture previewed', async () => {
+  const form = makeForm()
+  form.publish('ready', { enabled: true })
+  const { registered } = await loadAndApply(form)
+  const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
+  const panelTree = expand(card.Component({ t: (key) => key, view: 'page' }).children[1])
+
+  // The first group's first slider (card blur). Mid-drag previews live; the
+  // release reads the value off the input itself — a captured prop would have
+  // gone stale during the preview — and persists it.
+  const input = collectByClass(panelTree, 'dsh-glass-slider')[0].children.find((c) => c.type === 'input')
+  input.props.onChange({ target: { value: '18' } })
+  assert.deepEqual(form.writes, [], 'a live preview must not write')
+  input.props.onPointerUp({ target: { value: '18' } })
+  assert.deepEqual(form.writes, [['card_blur', 18]])
+})
+
+test('client: a group switched off drops its surfaces from the stylesheet', async () => {
+  const form = makeForm()
+  form.publish('ready', {
+    enabled: true,
+    docks_on: false,
+    chips_tint: 40,
+  })
+  const { styles } = await loadAndApply(form)
+  const css = styles.map((el) => el.textContent).join('\n')
+
+  assert.doesNotMatch(css, /\[data-testid="todo-panel"\]/, 'docks off removes the todo dock rule')
+  assert.doesNotMatch(css, /\.nLMEza_bar/, 'docks off removes the goal bar rule')
+  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-card\]/, 'other groups stay on')
+
+  // The chips group stays on and adopts the stored tint.
+  assert.match(css, /calc\(0\.4 \* 100%\)/, 'chips tint follows the stored value')
+})
+
+test('client: a snapshot with no group fields falls back to the preset', async () => {
+  const form = makeForm()
+  form.publish('ready', { enabled: true }) // an older profile: only `enabled`
+  const { styles } = await loadAndApply(form)
+  const css = styles.map((el) => el.textContent).join('\n')
+
+  // The preset blur (10px) appears on every glass surface.
+  assert.match(css, /blur\(10px\) saturate\(165%\) brightness\(0\.91\)/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.nLMEza_bar::before/)
 })
