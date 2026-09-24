@@ -1,15 +1,15 @@
 /**
- * Tests for the durable on/off preference.
+ * Tests for the durable on/off preference (DSH 0.1.7-rc.1 API).
  *
  * Two layers are covered:
  *
- * 1. The Host schema and registration (`lib/index.js`) — pure functions, run
- *    directly.
+ * 1. The Host Config (`lib/index.js`) — the Schemastery schema declaring the
+ *    volatile `enabled` field, run directly.
  * 2. The browser half's settings wiring (`lib/client.js`) — loaded the way
  *    DSH loads it (a `window.__ModuleLoader__.load` factory), then driven with
- *    fake `slots` / `locale` / `settingsScope` services and a fake DOM. That
+ *    fake `slots` / `locale` / `configForms` services and a fake DOM. That
  *    proves the two behaviours this change exists for: a stored choice wins on
- *    first paint, and a click writes back through the settings scope.
+ *    first paint, and a click writes back through the config form.
  *
  * The browser half is re-imported per test with a cache-busting query so each
  * test gets fresh module scope (the real page does the same on every reload).
@@ -17,43 +17,38 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  Config,
   DEFAULT_ENABLED,
   SETTINGS_FIELD,
-  SETTINGS_NAMESPACE,
   apply as hostApply,
-  inject as hostInject,
-  preferenceSchema,
+  name as hostName,
 } from '../lib/index.js'
+
+/** A volatile field resolves to a frozen `{ get() }` reference; unwrap either shape. */
+function unwrap(value) {
+  return value && typeof value === 'object' && typeof value.get === 'function' ? value.get() : value
+}
 
 // ------------------------------------------------------------------- host half
 
-test('preferenceSchema: defaults, whitelists, and coerces to a boolean', () => {
-  assert.deepEqual(preferenceSchema(undefined), { enabled: DEFAULT_ENABLED })
-  assert.deepEqual(preferenceSchema(null), { enabled: true })
-  assert.deepEqual(preferenceSchema({ enabled: false }), { enabled: false })
-  assert.deepEqual(preferenceSchema({ enabled: true }), { enabled: true })
-  // A field the schema does not name must not survive: the service would store
-  // the raw value, but every reader sees this resolved shape.
-  assert.deepEqual(preferenceSchema({ enabled: false, ghost: 1 }), { enabled: false })
-  // Anything that is not a boolean falls back to the default rather than
-  // letting a truthy string flip the pane.
-  assert.deepEqual(preferenceSchema({ enabled: 'off' }), { enabled: true })
-  assert.deepEqual(preferenceSchema({ enabled: 0 }), { enabled: true })
+test('host name: matches the bundle patch row id', () => {
+  assert.equal(hostName, 'composer-glass')
 })
 
-test('preferenceSchema.toJSON: the wire envelope settings.describe serializes', () => {
-  assert.deepEqual(preferenceSchema.toJSON(), { type: 'object', dict: {} })
+test('Config: volatile enabled defaults to on', () => {
+  const resolved = Config({})
+  assert.equal(unwrap(resolved[SETTINGS_FIELD]), DEFAULT_ENABLED)
 })
 
-test('host apply: registers the shared namespace with an on base layer', () => {
-  assert.ok(hostInject.includes('settings'), 'the host half must inject settings')
-  const calls = []
-  hostApply({ settings: { register: (...args) => calls.push(args) } })
-  assert.equal(calls.length, 1)
-  const [ns, schema, options] = calls[0]
-  assert.equal(ns, SETTINGS_NAMESPACE)
-  assert.equal(schema, preferenceSchema)
-  assert.deepEqual(options, { base: { [SETTINGS_FIELD]: DEFAULT_ENABLED } })
+test('Config: a stored boolean survives resolution, non-boolean input is rejected by the schema', () => {
+  assert.equal(unwrap(Config({ [SETTINGS_FIELD]: false })[SETTINGS_FIELD]), false)
+  assert.equal(unwrap(Config({ [SETTINGS_FIELD]: true })[SETTINGS_FIELD]), true)
+  assert.throws(() => Config({ [SETTINGS_FIELD]: 'off' }), undefined, 'schemastery rejects non-boolean input')
+})
+
+test('host apply: a bodyless line — the Config declaration is the whole contribution', () => {
+  // apply exists only so the Loader line has a body; it must not touch services.
+  hostApply({})
 })
 
 // ----------------------------------------------------------------- client half
@@ -97,10 +92,10 @@ function makePrimitives() {
 }
 
 /**
- * Load one fresh instance of the browser half and apply it against `scope`.
- * @returns the captured registrations, the fake DOM, and the bound scope spec.
+ * Load one fresh instance of the browser half and apply it against `form`.
+ * @returns the captured registrations, the fake DOM, and the requested entry id.
  */
-async function loadAndApply(scope) {
+async function loadAndApply(form) {
   let definition = null
   // The shell's global is `__ModuleLoader__`; build the name from parts so the
   // literal never depends on how the surrounding text renders underscores.
@@ -122,7 +117,7 @@ async function loadAndApply(scope) {
   })
 
   const registered = []
-  const bound = []
+  const requested = []
   const ctx = {
     effect: (fn) => fn(),
     locale: {
@@ -136,40 +131,43 @@ async function loadAndApply(scope) {
         return () => {}
       },
     },
-    settingsScope: {
-      bind: (spec) => {
-        bound.push(spec)
-        return scope
+    remote: {},
+    configForms: {
+      get: (entryId) => {
+        requested.push(entryId)
+        return form
       },
     },
   }
   mod.apply(ctx)
-  return { mod, doc, registered, bound, styles: doc.styles, primitives }
+  return { mod, doc, registered, requested, styles: doc.styles, primitives }
 }
 
-/** A settings scope whose snapshot the test drives by hand. */
-function makeScope() {
+/** A config form whose snapshot the test drives by hand (ConfigForm shape). */
+function makeForm() {
   const listeners = new Set()
   const writes = []
-  const scope = {
+  const form = {
     writes,
-    snapshot: { status: 'loading', value: undefined, revision: undefined, writable: true, mode: 'host' },
-    getSnapshot: () => scope.snapshot,
+    snapshot: { status: 'loading', value: undefined, base: undefined, user: undefined, revision: undefined, writable: true, mode: 'host' },
+    getSnapshot: () => form.snapshot,
     subscribe: (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     set: (field, value) => {
       writes.push([field, value])
-      return Promise.resolve()
+      return Promise.resolve(true)
     },
+    unset: () => Promise.resolve(true),
+    mutate: () => Promise.resolve(true),
     /** Simulate the Host document arriving / committing. */
     publish: (status, value) => {
-      scope.snapshot = { ...scope.snapshot, status, value, revision: (scope.snapshot.revision || 0) + 1 }
+      form.snapshot = { ...form.snapshot, status, value, revision: (form.snapshot.revision || 0) + 1 }
       for (const listener of [...listeners]) listener()
     },
   }
-  return scope
+  return form
 }
 
 /** Depth-first search for the first element built from `type`. */
@@ -183,9 +181,19 @@ function findByType(node, type) {
   return null
 }
 
+/** Collect every element whose className contains the given class. */
+function collectByClass(node, cls, acc = []) {
+  if (!node || typeof node !== 'object') return acc
+  if (typeof node.props?.className === 'string' && node.props.className.split(' ').includes(cls)) {
+    acc.push(node)
+  }
+  for (const child of node.children || []) collectByClass(child, cls, acc)
+  return acc
+}
+
 test('client: the shared material covers the composer, todo dock, to-bottom button, and status chip', async () => {
-  const scope = makeScope()
-  const { styles } = await loadAndApply(scope)
+  const form = makeForm()
+  const { styles } = await loadAndApply(form)
   const css = styles.map((el) => el.textContent).join('\n')
   // Every surface is gated by the persisted on/off attribute, never applied unconditionally.
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-card\]/)
@@ -199,8 +207,8 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
 })
 
 test('client: the shipped chrome is restored when the preference is OFF', async () => {
-  const scope = makeScope()
-  const { styles } = await loadAndApply(scope)
+  const form = makeForm()
+  const { styles } = await loadAndApply(form)
   const css = styles.map((el) => el.textContent).join('\n')
   // Clearing the opaque chrome is part of the glass, not a permanent override:
   // ungated, it kept the message flow running to the bottom of the seat with the
@@ -209,61 +217,70 @@ test('client: the shipped chrome is restored when the preference is OFF', async 
   assert.doesNotMatch(css, /(^|\n)\.wSkVaW_/)
 })
 
-test('client: declares settingsScope alongside slots and locale', async () => {
-  const scope = makeScope()
-  const { mod } = await loadAndApply(scope)
-  assert.deepEqual(mod.inject, ['slots', 'locale', 'settingsScope'])
-  assert.equal(scope.writes.length, 0, 'apply must not fabricate a user write')
+test('client: declares configForms and remote alongside slots and locale', async () => {
+  const form = makeForm()
+  const { mod } = await loadAndApply(form)
+  assert.deepEqual(mod.inject, ['slots', 'locale', 'remote', 'configForms'])
+  assert.equal(form.writes.length, 0, 'apply must not fabricate a user write')
 })
 
 test('client: a stored "off" wins on first paint', async () => {
-  const scope = makeScope()
-  scope.publish('ready', { enabled: false })
-  const { doc, bound } = await loadAndApply(scope)
-  assert.equal(bound[0].namespace, 'composer-glass')
+  const form = makeForm()
+  form.publish('ready', { enabled: false })
+  const { doc, requested } = await loadAndApply(form)
+  assert.deepEqual(requested, ['composer-glass'])
   assert.equal(doc.attributes.get('data-dsh-glass'), 'off')
-  assert.equal(scope.writes.length, 0)
+  assert.equal(form.writes.length, 0)
 })
 
 test('client: a stored "on" paints on', async () => {
-  const scope = makeScope()
-  scope.publish('ready', { enabled: true })
-  const { doc } = await loadAndApply(scope)
+  const form = makeForm()
+  form.publish('ready', { enabled: true })
+  const { doc } = await loadAndApply(form)
   assert.equal(doc.attributes.get('data-dsh-glass'), 'on')
 })
 
 test('client: with no document yet the pane starts on and corrects on commit', async () => {
-  const scope = makeScope()
-  const { doc } = await loadAndApply(scope)
+  const form = makeForm()
+  const { doc } = await loadAndApply(form)
   assert.equal(doc.attributes.get('data-dsh-glass'), 'on', 'schema default on first paint')
 
-  scope.publish('ready', { enabled: false })
+  form.publish('ready', { enabled: false })
   assert.equal(doc.attributes.get('data-dsh-glass'), 'off', 'subscription adopts the stored value')
-  assert.equal(scope.writes.length, 0, 'adopting the stored value is not a write')
+  assert.equal(form.writes.length, 0, 'adopting the stored value is not a write')
 })
 
-test('client: choosing an option writes the choice through the scope', async () => {
-  const scope = makeScope()
-  scope.publish('ready', { enabled: true })
-  const { doc, registered, primitives } = await loadAndApply(scope)
+test('client: choosing an option writes the choice through the form', async () => {
+  const form = makeForm()
+  form.publish('ready', { enabled: true })
+  const { doc, registered, primitives } = await loadAndApply(form)
 
-  const row = registered.find((entry) => entry.options.id === 'dsh-glass-pane')
-  assert.ok(row, 'the Settings -> General row must be registered')
+  const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
+  assert.ok(card, 'the Plugins-page row-config card must be registered')
+  assert.equal(card.options.key, 'dsh-composer-glass#composer-glass', 'card key pairs bundle package with patch row id')
 
-  const tree = row.Component({ t: (key) => key })
-  const menu = findByType(tree, primitives.Menu)
-  assert.ok(menu, 'the row must drive the shipped Menu primitive')
-  assert.deepEqual(menu.props.items, [
-    { id: 'on', label: 'opt.on' },
-    { id: 'off', label: 'opt.off' },
-  ])
-  assert.equal(menu.props.selectedId, 'on')
+  // The summary view renders the one-liner; the page view hosts the switch.
+  const summary = card.Component({ t: (key) => key, view: 'summary' })
+  assert.equal(summary.props.className, 'dsh-glass-cardSummary')
+  assert.deepEqual(summary.children, ['card.summary'])
 
-  menu.props.onSelect('off')
-  assert.deepEqual(scope.writes, [['enabled', false]])
+  // The page view returns a GlassRow element; render that function component
+  // by hand (the fake React does not expand it) before searching for pills.
+  const tree = card.Component({ t: (key) => key, view: 'page' })
+  const rowTree = typeof tree.type === 'function' ? tree.type(tree.props) : tree
+  const group = findByType(rowTree, primitives.Menu)
+  assert.ok(!group, 'no Menu primitive may be used — profiles do not ship it')
+
+  const pills = collectByClass(rowTree, 'dsh-glass-pill')
+  assert.equal(pills.length, 2, 'the card must offer exactly two pill buttons')
+  assert.match(pills[0].props.className, / on$/, 'on pill starts selected')
+  assert.doesNotMatch(pills[1].props.className, / on$/)
+
+  pills[1].props.onClick()
+  assert.deepEqual(form.writes, [['enabled', false]])
   assert.equal(doc.attributes.get('data-dsh-glass'), 'off')
 
-  menu.props.onSelect('on')
-  assert.deepEqual(scope.writes, [['enabled', false], ['enabled', true]])
+  pills[0].props.onClick()
+  assert.deepEqual(form.writes, [['enabled', false], ['enabled', true]])
   assert.equal(doc.attributes.get('data-dsh-glass'), 'on')
 })

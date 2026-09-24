@@ -1,24 +1,31 @@
 {
   "name": "dsh-composer-glass",
-  "version": "0.2.0",
-  "description": "DSH plugin: turn the composer into a uniformly translucent frosted-glass pane, with a persisted on/off preference row in Settings → General.",
+  "version": "0.3.1",
+  "description": "DSH plugin: give the composer area one uniform translucent frosted-glass material.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
+    "./locale/*": "./locale/*",
     "./package.json": "./package.json"
   },
   "files": [
     "lib",
+    "locale",
     "images",
     "cordis.patch.yml",
     "README.md",
     "README.en.md",
     "LICENSE"
   ],
+  "icon": "./images/icon.svg",
   "scripts": {
     "test": "node test/preference.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lbunc/dsh-composer-glass.git"
   },
   "engines": {
     "node": ">=20"
@@ -33,16 +40,14 @@
     "theme",
     "ui"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Lbunc/dsh-composer-glass.git"
-  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
       "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-locale"
       ],
@@ -51,8 +56,12 @@
   },
   "peerDependencies": {
     "react": "^18.2.0",
-    "@deepseek-ai/dsh-client-ui-settings": "^0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-locale": "^0.1.5-rc.1"
+    "@deepseek-ai/cordis": "~4.0.4",
+    "@deepseek-ai/schemastery": "~3.18.4",
+    "@deepseek-ai/dsh-api-remotes": "^0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "^0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings": "^0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-locale": "^0.1.7-rc.1"
   },
   "license": "MIT"
 }
