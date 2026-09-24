@@ -200,10 +200,12 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-testid="todo-panel"\]/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.EvIC1a_toBottom\b/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-stats\]/)
+  // The context-usage pill is its own capsule next to the stats pill.
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.JObwrW_root\b/)
   // The todo dock is one surface for both collapsed and expanded states.
   assert.match(css, /\[data-testid="todo-panel"\]::after/)
-  // Four surfaces, each with the prefixed and unprefixed blur declaration.
-  assert.equal((css.match(/backdrop-filter:/g) || []).length, 8)
+  // Five surfaces, each with the prefixed and unprefixed blur declaration.
+  assert.equal((css.match(/backdrop-filter:/g) || []).length, 10)
 })
 
 test('client: the shipped chrome is restored when the preference is OFF', async () => {
