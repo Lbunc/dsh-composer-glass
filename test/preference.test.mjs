@@ -232,6 +232,15 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   // backdrop-filter:none so the slash popover can blur the real page) — nine
   // blur carriers, each with the prefixed and unprefixed declaration.
   assert.equal((css.match(/backdrop-filter:\s*blur\(/g) || []).length, 18)
+
+  // The 1px edge line rides on outline (offset -1px), not an inset box-shadow
+  // layer: a ring layer scatters into a ~20px fog band on surfaces whose render
+  // path carries a backdrop-filter (the card's ::before underlay, the plan
+  // card's own filter). Eight surfaces carry the line — seven through the
+  // shared material, the goal bar in its own rule.
+  assert.equal((css.match(/outline: 1px solid var\(--dsh-glass-ring\)/g) || []).length, 8)
+  assert.equal((css.match(/outline-offset: -1px/g) || []).length, 8)
+  assert.doesNotMatch(css, /inset 0 0 0 1px/, 'no inset ring layer may remain')
 })
 
 test('client: the shipped chrome is restored when the preference is OFF', async () => {
