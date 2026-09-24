@@ -204,8 +204,10 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.match(css, /:root\[data-dsh-glass="on"\] \.JObwrW_root\b/)
   // The todo dock is one surface for both collapsed and expanded states.
   assert.match(css, /\[data-testid="todo-panel"\]::after/)
-  // Five surfaces, each with the prefixed and unprefixed blur declaration.
-  assert.equal((css.match(/backdrop-filter:/g) || []).length, 10)
+  // Six glass surfaces plus the card's ::before underlay (the card itself sets
+  // backdrop-filter:none so the slash popover can blur the real page) — seven
+  // blur carriers, each with the prefixed and unprefixed declaration.
+  assert.equal((css.match(/backdrop-filter:\s*blur\(/g) || []).length, 14)
 })
 
 test('client: the shipped chrome is restored when the preference is OFF', async () => {
