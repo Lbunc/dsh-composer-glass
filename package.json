@@ -1,6 +1,6 @@
 {
   "name": "dsh-composer-glass",
-  "version": "0.3.1",
+  "version": "0.3.0",
   "description": "DSH plugin: give the composer area one uniform translucent frosted-glass material.",
   "type": "module",
   "main": "lib/index.js",

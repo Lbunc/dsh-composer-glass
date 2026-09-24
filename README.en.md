@@ -13,6 +13,8 @@ Switch and per-surface tuning panel live in Plugins → Composer-area frosted gl
 
 ***
 
+> ⚠️ **DSH 0.1.7-rc.1 introduced sweeping changes; only plugin v0.3.0 and above is compatible.**
+
 ## 📸 Preview
 
 **🟢 Starting a session**
