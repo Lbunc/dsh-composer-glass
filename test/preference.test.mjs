@@ -426,6 +426,39 @@ test('client: a group switched off drops its surfaces from the stylesheet', asyn
   assert.match(css, /calc\(0\.4 \* 100%\)/, 'chips tint follows the stored value')
 })
 
+test('client: global on with every group off restores the shipped chrome', async () => {
+  const form = makeForm()
+  form.publish('ready', {
+    enabled: true,
+    card_on: false,
+    docks_on: false,
+    chips_on: false,
+    toBottom_on: false,
+    menu_on: false,
+    plan_on: false,
+  })
+  const { styles } = await loadAndApply(form)
+  const css = styles.map((el) => el.textContent).join('\n')
+
+  // No glass surface exists, so the chrome-clearing preconditions must stand
+  // down with it — otherwise the page loses its backgrounds with nothing to
+  // show for the clearing.
+  assert.doesNotMatch(css, /\.wSkVaW_/, 'no chrome-clearing rule may survive all groups off')
+  assert.doesNotMatch(css, /backdrop-filter:\s*blur\(/, 'no glass surface rule may survive')
+  // The shadow variables stay: inert defaults, not chrome.
+  assert.match(css, /--dsh-glass-ring: rgba\(255,255,255,0\.34\)/)
+})
+
+test('client: the slash-command menu anchors on its stable data attribute', async () => {
+  const form = makeForm()
+  const { styles } = await loadAndApply(form)
+  const css = styles.map((el) => el.textContent).join('\n')
+
+  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-trigger-menu\]/)
+  // A structural :has selector would frost every other listbox holder too.
+  assert.doesNotMatch(css, /div:has\(> \[role=listbox\]\)/)
+})
+
 test('client: a snapshot with no group fields falls back to the preset', async () => {
   const form = makeForm()
   form.publish('ready', { enabled: true }) // an older profile: only `enabled`
