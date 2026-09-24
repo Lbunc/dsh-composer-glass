@@ -322,7 +322,7 @@ test('client: the page card hosts one tuning panel per surface group', async () 
   assert.equal(groups.length, 6, 'six surface groups: card, docks, chips, toBottom, menu, plan')
 
   const sliders = collectByClass(expand(pageTree.children[1]), 'dsh-glass-slider')
-  assert.equal(sliders.length, 24, 'four sliders (blur/tint/saturate/brightness) per group')
+  assert.equal(sliders.length, 36, 'six sliders (blur/tint/saturate/brightness/shadow/highlight) per group')
 
   const resets = collectByClass(expand(pageTree.children[1]), 'dsh-glass-reset')
   assert.equal(resets.length, 1, 'exactly one reset-to-preset button')
@@ -341,10 +341,10 @@ test('client: group pills and the reset write flat Config fields', async () => {
   groupPills[1].props.onClick()
   assert.deepEqual(form.writes, [['card_on', false]])
 
-  // The reset button restores every group field (6 groups x 5 fields).
+  // The reset button restores every group field (6 groups x 7 fields).
   form.writes.length = 0
   collectByClass(panelTree, 'dsh-glass-reset')[0].props.onClick()
-  assert.equal(form.writes.length, 30)
+  assert.equal(form.writes.length, 42)
   assert.deepEqual(
     form.writes.filter(([field]) => field.startsWith('card_')),
     [
@@ -353,6 +353,8 @@ test('client: group pills and the reset write flat Config fields', async () => {
       ['card_tint', 17],
       ['card_saturate', 165],
       ['card_brightness', 91],
+      ['card_shadow', 100],
+      ['card_highlight', 100],
     ],
     'reset restores the shipped preset'
   )
@@ -373,6 +375,28 @@ test('client: a slider commit persists the value the gesture previewed', async (
   assert.deepEqual(form.writes, [], 'a live preview must not write')
   input.props.onPointerUp({ target: { value: '18' } })
   assert.deepEqual(form.writes, [['card_blur', 18]])
+})
+
+test('client: shadow and highlight strengths override the glass variables, light and dark', async () => {
+  const form = makeForm()
+  form.publish('ready', {
+    enabled: true,
+    card_shadow: 0,
+    card_highlight: 50,
+  })
+  const { styles } = await loadAndApply(form)
+  const css = styles.map((el) => el.textContent).join('\n')
+
+  // Highlight halves the edge pair: ring 0.34 * 0.5 = 0.17, inner 0.05 -> 0.025.
+  assert.match(css, /--dsh-glass-ring: rgba\(255,255,255,0\.17\)/)
+  assert.match(css, /--dsh-glass-inner: rgba\(255,255,255,0\.025\)/)
+  // Shadow 0 flattens the drop pair to fully transparent.
+  assert.match(css, /--dsh-glass-shade: rgba\(0,0,0,0\)/)
+  assert.match(css, /--dsh-glass-halo: 0 12px 36px rgba\(0,0,0,0\)/)
+  // The dark theme restates the override with its own palette (ring 0.22 * 0.5).
+  assert.match(css, /:root\[data-dsh-glass="on"\] body\[data-ds-dark-theme\] \[data-composer-card\] \{[^}]*--dsh-glass-ring: rgba\(255,255,255,0\.11\)/)
+  // Groups left at the preset strengths emit no element-scoped overrides.
+  assert.doesNotMatch(css, /:root\[data-dsh-glass="on"\] \[data-testid="todo-panel"\] \{\s*--dsh-glass-ring/)
 })
 
 test('client: a group switched off drops its surfaces from the stylesheet', async () => {
