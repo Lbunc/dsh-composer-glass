@@ -226,6 +226,18 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.match(css, /:root\[data-dsh-glass="on"\] \.k74WwW_card\b/)
   // The goal bar's ::before gets the shared tint/blur, the bar gets the ring.
   assert.match(css, /:root\[data-dsh-glass="on"\] \.nLMEza_bar::before/)
+  // Both platform builds are covered in the SAME rule: the web build (hashes
+  // stable across dsh 0.1.7 → 0.2.0-rc.2) and the desktop (DeepSeek Harness)
+  // build share no hashed prefix — the split is per-platform packaging, not a
+  // version boundary — so each hashed surface lists its desktop counterpart
+  // alongside, gated individually.
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.xz4KEq_toBottom\b/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \._2WTFBq_root\b/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.KuQXFq_card\b/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.nJdiTq_bar::before/)
+  // A naive comma-join would leave selectors after the first ungated; every
+  // listed selector must carry the gate itself.
+  assert.doesNotMatch(css, /(^|\n)[^:]+\.Dc7zOa_/)
   // The todo dock is one surface for both collapsed and expanded states.
   assert.match(css, /\[data-testid="todo-panel"\]::after/)
   // Eight glass surfaces plus the card's ::before underlay (the card itself sets
@@ -250,8 +262,9 @@ test('client: the shipped chrome is restored when the preference is OFF', async 
   // Clearing the opaque chrome is part of the glass, not a permanent override:
   // ungated, it kept the message flow running to the bottom of the seat with the
   // preference OFF instead of letting the shipped fade mask it again.
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.wSkVaW_composerSeat \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.wSkVaW_composerSeat, :root\[data-dsh-glass="on"\] \.Dc7zOa_composerSeat \{ background: none !important; \}/)
   assert.doesNotMatch(css, /(^|\n)\.wSkVaW_/)
+  assert.doesNotMatch(css, /(^|\n)\.Dc7zOa_/)
 })
 
 test('client: declares configForms and remote alongside slots and locale', async () => {
