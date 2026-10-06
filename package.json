@@ -1,6 +1,6 @@
 {
   "name": "dsh-composer-glass",
-  "version": "0.3.2",
+  "version": "1.0.0",
   "description": "DSH plugin: one uniform frosted-glass material for the UI surfaces, plus an optional image/video dynamic wallpaper behind them.",
   "type": "module",
   "main": "lib/index.js",
