@@ -21,11 +21,13 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper → Configure
 
 **Starting a session**
 
-<video src="https://github.com/Lbunc/dsh-composer-glass/releases/download/v0.3.2/01-start.mp4" controls muted playsinline></video>
+![Starting a session preview](images/01-start.webp)
 
 **In conversation**
 
-<video src="https://github.com/Lbunc/dsh-composer-glass/releases/download/v0.3.2/02-in-conversation.mp4" controls muted playsinline></video>
+![In conversation preview](images/02-in-conversation.webp)
+
+> The previews above are compressed; see [Release v1.0.0](https://github.com/Lbunc/dsh-composer-glass/releases/tag/v1.0.0) for the full-quality videos.
 
 ## Features
 

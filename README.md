@@ -21,11 +21,13 @@
 
 **开始会话**
 
-<video src="https://github.com/Lbunc/dsh-composer-glass/releases/download/v0.3.2/01-start.mp4" controls muted playsinline></video>
+![开始会话动态预览](images/01-start.webp)
 
 **会话正文**
 
-<video src="https://github.com/Lbunc/dsh-composer-glass/releases/download/v0.3.2/02-in-conversation.mp4" controls muted playsinline></video>
+![会话正文动态预览](images/02-in-conversation.webp)
+
+> 上方为压缩动态预览，完整高清视频见 [Release v1.0.0](https://github.com/Lbunc/dsh-composer-glass/releases/tag/v1.0.0)。
 
 ## 特性
 
