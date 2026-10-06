@@ -372,12 +372,16 @@ test('client: choosing an option writes the choice through the form', async () =
   assert.equal(summary.props.className, 'dsh-glass-cardSummary')
   assert.deepEqual(summary.children, ['card.summary'])
 
-  // The page view is [GlassRow, GroupsPanel]; expand the GlassRow element by
-  // hand (the fake React does not) before searching for pills.
+  // The page view is [WallpaperPanel, GlassRow, GroupsPanel]; expand the
+  // GlassRow element by hand (the fake React does not) before searching for pills.
   assert.ok(!findByType(card.Component({ t: (key) => key, view: 'page' }), primitives.Menu),
     'no Menu primitive may be used — profiles do not ship it')
   const pageTree = card.Component({ t: (key) => key, view: 'page' })
-  const pills = collectByClass(expand(pageTree.children[0]), 'dsh-glass-pill')
+  const rowHead = expand(pageTree.children[1])
+  // The master switch is not a bare toggle: a visible label names what the pills control.
+  const rowTitle = collectByClass(rowHead, 'dsh-glass-groupTitle')[0]
+  assert.equal(rowTitle.children[0], 'row.master', 'the master switch row carries a text label')
+  const pills = collectByClass(rowHead, 'dsh-glass-pill')
   assert.equal(pills.length, 2, 'the row must offer exactly two pill buttons')
   assert.match(pills[0].props.className, / on$/, 'on pill starts selected')
   assert.doesNotMatch(pills[1].props.className, / on$/)
@@ -398,13 +402,13 @@ test('client: the page card hosts one tuning panel per surface group', async () 
   const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
   const pageTree = card.Component({ t: (key) => key, view: 'page' })
 
-  const groups = collectByClass(expand(pageTree.children[1]), 'dsh-glass-group')
-  assert.equal(groups.length, 8, 'eight surface groups: card, docks, chips, toBottom, menu, plan, sidebar, content')
+  const groups = collectByClass(expand(pageTree.children[2]), 'dsh-glass-group')
+  assert.equal(groups.length, 7, 'seven surface groups: card, floaters, chips, toBottom, sidebar, content, dialogs')
 
-  const sliders = collectByClass(expand(pageTree.children[1]), 'dsh-glass-slider')
-  assert.equal(sliders.length, 48, 'six sliders (blur/tint/saturate/brightness/shadow/highlight) per group')
+  const sliders = collectByClass(expand(pageTree.children[2]), 'dsh-glass-slider')
+  assert.equal(sliders.length, 42, 'six sliders (blur/tint/saturate/brightness/shadow/highlight) per group')
 
-  const resets = collectByClass(expand(pageTree.children[1]), 'dsh-glass-reset')
+  const resets = collectByClass(expand(pageTree.children[2]), 'dsh-glass-reset')
   assert.equal(resets.length, 1, 'exactly one reset-to-preset button')
 })
 
@@ -413,7 +417,7 @@ test('client: group pills and the reset write flat Config fields', async () => {
   form.publish('ready', { enabled: true })
   const { registered } = await loadAndApply(form)
   const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
-  const panelTree = expand(card.Component({ t: (key) => key, view: 'page' }).children[1])
+  const panelTree = expand(card.Component({ t: (key) => key, view: 'page' }).children[2])
 
   // The first group box's off pill writes `<group>_on = false`.
   const groups = collectByClass(panelTree, 'dsh-glass-group')
@@ -421,10 +425,10 @@ test('client: group pills and the reset write flat Config fields', async () => {
   groupPills[1].props.onClick()
   assert.deepEqual(form.writes, [['card_on', false]])
 
-  // The reset button restores every group field (8 groups x 7 fields).
+  // The reset button restores every group field (7 groups x 7 fields).
   form.writes.length = 0
   collectByClass(panelTree, 'dsh-glass-reset')[0].props.onClick()
-  assert.equal(form.writes.length, 56)
+  assert.equal(form.writes.length, 49)
   assert.deepEqual(
     form.writes.filter(([field]) => field.startsWith('card_')),
     [
@@ -445,7 +449,7 @@ test('client: a slider commit persists the value the gesture previewed', async (
   form.publish('ready', { enabled: true })
   const { registered } = await loadAndApply(form)
   const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
-  const panelTree = expand(card.Component({ t: (key) => key, view: 'page' }).children[1])
+  const panelTree = expand(card.Component({ t: (key) => key, view: 'page' }).children[2])
 
   // The first group's first slider (card blur). Mid-drag previews live; the
   // release reads the value off the input itself — a captured prop would have
@@ -483,14 +487,16 @@ test('client: a group switched off drops its surfaces from the stylesheet', asyn
   const form = makeForm()
   form.publish('ready', {
     enabled: true,
-    docks_on: false,
+    floaters_on: false,
     chips_tint: 40,
   })
   const { styles } = await loadAndApply(form)
   const css = styles.map((el) => el.textContent).join('\n')
 
-  assert.doesNotMatch(css, /\[data-testid="todo-panel"\]/, 'docks off removes the todo dock rule')
-  assert.doesNotMatch(css, /\.nLMEza_bar/, 'docks off removes the goal bar rule')
+  assert.doesNotMatch(css, /\[data-testid="todo-panel"\]/, 'floaters off removes the todo dock rule')
+  assert.doesNotMatch(css, /\.nLMEza_bar/, 'floaters off removes the goal bar rule')
+  assert.doesNotMatch(css, /\.k74WwW_card/, 'floaters off removes the plan card rule')
+  assert.doesNotMatch(css, /\[data-trigger-menu\]/, 'floaters off removes the slash menu rule')
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-card\]/, 'other groups stay on')
 
   // The chips group stays on and adopts the stored tint.
@@ -502,13 +508,12 @@ test('client: global on with every group off restores the shipped chrome', async
   form.publish('ready', {
     enabled: true,
     card_on: false,
-    docks_on: false,
+    floaters_on: false,
     chips_on: false,
     toBottom_on: false,
-    menu_on: false,
-    plan_on: false,
     sidebar_on: false,
     content_on: false,
+    dialogs_on: false,
   })
   const { styles } = await loadAndApply(form)
   const css = styles.map((el) => el.textContent).join('\n')
@@ -734,6 +739,24 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_sidebarCol/)
 })
 
+test('client: the dialogs group owns the approval and ask cards', async () => {
+  const form = makeForm()
+  form.publish('ready', {
+    enabled: true,
+    wallpaper_on: true,
+    wallpaper_path: 'E:/Pictures/壁纸/wallpaper/1_OceanDream1_4k.jpg',
+    dialogs_on: false,
+  })
+  const { styles } = await loadAndApply(form)
+  const css = styles.map((el) => el.textContent).join('\n')
+
+  assert.doesNotMatch(css, /\.mna1RW_card/, 'dialogs off removes the approval card rule')
+  assert.doesNotMatch(css, /\.LVzXQa_card/, 'dialogs off removes the question card rule')
+  assert.doesNotMatch(css, /\.Mbwy4a_customBlock/, 'dialogs off removes the nested answer block rule')
+  // The content surfaces are the content group's business and stay on.
+  assert.match(css, /\.Sixlwa_bubble[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+})
+
 test('client: a video wallpaper mounts a looping muted video element', async () => {
   const form = makeForm()
   form.publish('ready', {
@@ -800,8 +823,8 @@ test('client: the wallpaper panel writes flat Config fields', async () => {
   const { registered, doc } = await loadAndApply(form)
   const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
   const pageTree = card.Component({ t: (key) => key, view: 'page' })
-  const wallpaperBox = collectByClass(expand(pageTree.children[2]), 'dsh-glass-group')[0]
-  assert.ok(wallpaperBox, 'the page card hosts a wallpaper box')
+  const wallpaperBox = collectByClass(expand(pageTree.children[0]), 'dsh-glass-group')[0]
+  assert.ok(wallpaperBox, 'the page card hosts a wallpaper box at the top')
 
   // The head pills enable the wallpaper first (a path alone shows nothing).
   const pills = collectByClass(wallpaperBox, 'dsh-glass-pill')
