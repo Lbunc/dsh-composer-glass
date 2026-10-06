@@ -709,6 +709,12 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.nyYjTG_file[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /--dsl-code-block-background: transparent/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] code \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // Approval + ask-user cards join the glass (they paint input-major at full
+  // strength); the nested custom-answer block gets a plain tint.
+  assert.match(css, /\.mna1RW_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.LVzXQa_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.Mbwy4a_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.Mbwy4a_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
   // The sidebar column keeps its tinted glass (the sidebar group is on by
   // default), so the wallpaper section must NOT clear it — the two rules
   // would fight and the later one would strip the tint.
