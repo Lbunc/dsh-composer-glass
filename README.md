@@ -19,15 +19,17 @@
 
 ## 演示
 
+<div align="center">
+
 **开始会话**
 
-![开始会话动态预览](images/01-start.webp)
+<img src="images/01-start.webp" alt="开始会话动态预览" width="720">
 
 **会话正文**
 
-![会话正文动态预览](images/02-in-conversation.webp)
+<img src="images/02-in-conversation.webp" alt="会话正文动态预览" width="720">
 
-> 上方为压缩动态预览，完整高清视频见 [Release v1.0.0](https://github.com/Lbunc/dsh-composer-glass/releases/tag/v1.0.0)。
+</div>
 
 ## 特性
 

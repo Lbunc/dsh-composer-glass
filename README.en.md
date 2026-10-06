@@ -19,15 +19,17 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper → Configure
 
 ## Demo
 
+<div align="center">
+
 **Starting a session**
 
-![Starting a session preview](images/01-start.webp)
+<img src="images/01-start.webp" alt="Starting a session preview" width="720">
 
 **In conversation**
 
-![In conversation preview](images/02-in-conversation.webp)
+<img src="images/02-in-conversation.webp" alt="In conversation preview" width="720">
 
-> The previews above are compressed; see [Release v1.0.0](https://github.com/Lbunc/dsh-composer-glass/releases/tag/v1.0.0) for the full-quality videos.
+</div>
 
 ## Features
 
