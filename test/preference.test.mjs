@@ -720,10 +720,17 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   // theme fill) reads as a white band wherever we removed that fill — cleared
   // under both the wallpaper gate and the glass gate (sidebar group). A
   // blur+mask "true fade" was tried instead, but its edge scatter shows as a
-  // fog band over a moving wallpaper, so fading is simply dropped. Web-only:
-  // the desktop build ships no sidebar fade class.
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
+  // fog band over a moving wallpaper, so fading is simply dropped. BOTH
+  // platform builds ship one — web `bhn1Oq`, desktop `_9lTDKa` (the desktop
+  // fade lives in the session-list module, not the sidebar root).
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade, :root\[data-dsh-wallpaper="on"\] \._9lTDKa_fade \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade, :root\[data-dsh-glass="on"\] \._9lTDKa_fade \{ background: none !important; \}/)
+  // Desktop-only opaque layers the wallpaper must also clear: the center
+  // column (titlebar/rightbar variants paint --dsw-alias-bg-base — the white
+  // slab behind the conversation and the plugin page) and the frame's
+  // ::before titlebar drag strip (sidebar fill; the drag region survives).
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_centerCol, :root\[data-dsh-wallpaper="on"\] \.BynINW_centerCol \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame::before, :root\[data-dsh-wallpaper="on"\] \.BynINW_frame::before \{ background: none !important; \}/)
   // Content surfaces (new-session pill, user bubble, code blocks, inline
   // code, file cards) turn glass under the same wallpaper gate AND the glass
   // gate — they are glass features, so the master switch controls them too
