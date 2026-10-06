@@ -732,8 +732,11 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade, :root\[data-dsh-glass="on"\] \._9lTDKa_fade \{ background: none !important; \}/)
   // Desktop-only opaque layers the wallpaper must also clear: the center
   // column (titlebar/rightbar variants paint --dsw-alias-bg-base — the white
-  // slab behind the conversation and the plugin page).
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_centerCol, :root\[data-dsh-wallpaper="on"\] \.BynINW_centerCol \{ background: none !important; \}/)
+  // slab behind the conversation and the plugin page) — and the titlebar
+  // variant's 16px top-left content radius, which keeps clipping the column's
+  // frosted children along an arc after the background is gone (the bare
+  // wallpaper peeking through the notch reads as a phantom rounded corner).
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_centerCol, :root\[data-dsh-wallpaper="on"\] \.BynINW_centerCol \{ background: none !important; border-radius: 0 !important; \}/)
   // The titlebar drag strip is never cleared under the wallpaper gate — in
   // any group state: it is the window-caption region, and its shipped theme
   // fill stays consistent with the OS-composited WCO window controls.

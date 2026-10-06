@@ -48,7 +48,7 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper → Configure
 | Setting | Description |
 | :---------------- | :----------------------------------------------------------------------------------------------------------- |
 | Show wallpaper | Images (jpg / png / webp / gif / avif / bmp / svg) or videos (mp4 / webm / mov / mkv, etc.); videos loop muted |
-| File path | Local absolute path, read by the Host, never sent over the network; **refresh the browser after adding a path** |
+| File path | Local absolute path, read by the Host, never sent over the network; **after adding a path, refresh the browser on web, restart the app on desktop** |
 | Fit | Cover / Contain |
 | Dim / Brighten | −100 to +100: negative overlays a black veil, positive a white one |
 
@@ -94,7 +94,7 @@ Sliders per group:
 
 ### Enable
 
-Sidebar Plugins → Frosted Glass & Dynamic Wallpaper: the row switch toggles the plugin, the config card tunes the material and the wallpaper. Every adjustment applies at once — no DSH restart needed; **refresh the browser after changing the wallpaper path**.
+Sidebar Plugins → Frosted Glass & Dynamic Wallpaper: the row switch toggles the plugin, the config card tunes the material and the wallpaper. Every adjustment applies at once — no DSH restart needed; **after changing the wallpaper path, refresh the browser on web, restart the app on desktop**.
 
 ### Uninstall
 
@@ -113,7 +113,7 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper: the row switch toggles th
 | Item | Description |
 | :- | :- |
 | DSH version | ≥ 0.1.7-rc.1 (tested against 0.2.0-rc.2); 0.1.6 and older are not supported — use plugin v0.3.0+ |
-| Platform | Frosted glass: both web and desktop (Harness); dynamic wallpaper: web only for now, desktop support planned |
+| Platform | Frosted glass and dynamic wallpaper: both web and desktop (Harness) |
 
 ## Development
 
