@@ -696,6 +696,9 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame \{ background: none !important; \}/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.wSkVaW_root/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.hHd-Xa_root \{ background: none !important; \}/)
+  // The sidebar list's built-in bottom fade (an opaque gradient toward the
+  // theme fill) reads as a white band over a wallpaper — cleared like chrome.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
   // The sidebar column keeps its tinted glass (the sidebar group is on by
   // default), so the wallpaper section must NOT clear it — the two rules
   // would fight and the later one would strip the tint.
