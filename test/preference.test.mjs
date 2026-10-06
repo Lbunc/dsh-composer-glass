@@ -699,14 +699,17 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   // AppFrame root, the conversation chrome, the inner sidebar root — all
   // under the wallpaper attribute, none under the glass one.
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] body \{ background: none !important; \}/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame \{ background: none !important; \}/)
+  // The AppFrame/inner-sidebar chrome carries BOTH platform twins (web
+  // `pI_x6G`/`hHd-Xa` + desktop `BynINW`/`_2H3hWW`) in one comma-joined rule.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame, :root\[data-dsh-wallpaper="on"\] \.BynINW_frame \{ background: none !important; \}/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.wSkVaW_root/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.hHd-Xa_root \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.hHd-Xa_root, :root\[data-dsh-wallpaper="on"\] \._2H3hWW_root \{ background: none !important; \}/)
   // The sidebar list's built-in bottom fade (an opaque gradient toward the
   // theme fill) reads as a white band wherever we removed that fill — cleared
   // under both the wallpaper gate and the glass gate (sidebar group). A
   // blur+mask "true fade" was tried instead, but its edge scatter shows as a
-  // fog band over a moving wallpaper, so fading is simply dropped.
+  // fog band over a moving wallpaper, so fading is simply dropped. Web-only:
+  // the desktop build ships no sidebar fade class.
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
   // Content surfaces (new-session pill, user bubble, code blocks, inline
@@ -726,17 +729,18 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.mna1RW_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.LVzXQa_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.Mbwy4a_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.Mbwy4a_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.Mbwy4a_customBlock, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.mAtvLq_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
   // The expanded reasoning row (a sticky header painting `--dsw-alias-bg-base`)
   // gets the glass material instead of the near-black slab.
   assert.match(css, /\.lcKema_root\[data-expanded\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // The plugin-manager page column frosts into one glass panel under the
-  // wallpaper (its rows otherwise sit straight on the photo).
-  assert.match(css, /\.X_2TxG_page \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // wallpaper (its rows otherwise sit straight on the photo) — both builds.
+  assert.match(css, /\.X_2TxG_page, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.fO69Vq_page \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // The sidebar column keeps its tinted glass (the sidebar group is on by
   // default), so the wallpaper section must NOT clear it — the two rules
   // would fight and the later one would strip the tint.
   assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_sidebarCol/)
+  assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.BynINW_sidebarCol/)
 })
 
 test('client: the dialogs group owns the approval and ask cards', async () => {
