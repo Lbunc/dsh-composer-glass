@@ -300,10 +300,8 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   // Nine glass surfaces (eight composer-area ones plus the sidebar column)
   // plus the card's ::before underlay (the card itself sets
   // backdrop-filter:none so the slash popover can blur the real page) — ten
-  // blur carriers — and the sidebar fade's true-fade swap (an eleventh
-  // carrier, present while the sidebar group is on). Each carries the
-  // prefixed and unprefixed declaration.
-  assert.equal((css.match(/backdrop-filter:\s*blur\(/g) || []).length, 22)
+  // blur carriers, each with the prefixed and unprefixed declaration.
+  assert.equal((css.match(/backdrop-filter:\s*blur\(/g) || []).length, 20)
 
   // The 1px edge line rides on outline (offset -1px), not an inset box-shadow
   // layer: a ring layer scatters into a ~20px fog band on surfaces whose render
@@ -699,12 +697,12 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.wSkVaW_root/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.hHd-Xa_root \{ background: none !important; \}/)
   // The sidebar list's built-in bottom fade (an opaque gradient toward the
-  // theme fill) reads as a white band over a wallpaper — swapped for a true
-  // fade (blur + mask) so the list still fades out, into the wallpaper. The
-  // same swap happens under the glass gate when the sidebar group clears the
-  // inner root the fade used to melt into.
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade \{[^}]*mask-image: linear-gradient\(to top, black, transparent\)/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade \{[^}]*mask-image: linear-gradient\(to top, black, transparent\)/)
+  // theme fill) reads as a white band wherever we removed that fill — cleared
+  // under both the wallpaper gate and the glass gate (sidebar group). A
+  // blur+mask "true fade" was tried instead, but its edge scatter shows as a
+  // fog band over a moving wallpaper, so fading is simply dropped.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
   // Content surfaces (new-session pill, user bubble, code blocks, inline
   // code, file cards) turn glass under the same gate — one shared rule, so
   // assert per surface across the selector list; code blocks additionally
