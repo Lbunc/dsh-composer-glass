@@ -311,6 +311,18 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.equal((css.match(/outline: 1px solid var\(--dsh-glass-ring\)/g) || []).length, 9)
   assert.equal((css.match(/outline-offset: -1px/g) || []).length, 9)
   assert.doesNotMatch(css, /inset 0 0 0 1px/, 'no inset ring layer may remain')
+
+  // The sidebar column's tint + blur ride its ::before, NEVER the column
+  // itself: the collapse toggle ([data-windows-titlebar] …_toggle) is
+  // `position: fixed` and a DOM descendant of the column, so a backdrop-filter
+  // on the column would make the column the toggle's containing block — the
+  // button re-anchors inside the column and vanishes under its overflow clip
+  // (the misplaced-toggle bug). The column keeps the fixed-safe parts only:
+  // transparent background (the wallpaper must show through), relative
+  // positioning, the shadow bundle.
+  assert.doesNotMatch(css, /:root\[data-dsh-glass="on"\] \.(?:pI_x6G|BynINW)_sidebarCol \{[^}]*backdrop-filter/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_sidebarCol, :root\[data-dsh-glass="on"\] \.BynINW_sidebarCol \{[^}]*background: transparent !important;/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_sidebarCol::before, :root\[data-dsh-glass="on"\] \.BynINW_sidebarCol::before \{[^}]*z-index: -1;[^}]*backdrop-filter/)
 })
 
 test('client: the shipped chrome is restored when the preference is OFF', async () => {
