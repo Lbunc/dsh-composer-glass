@@ -705,21 +705,23 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
   // Content surfaces (new-session pill, user bubble, code blocks, inline
-  // code, file cards) turn glass under the same gate — one shared rule, so
-  // assert per surface across the selector list; code blocks additionally
-  // get their paint variables pinned to transparent so the shiki <pre> and
-  // the sticky banner clear with the card.
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.md-code-block[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // code, file cards) turn glass under the same wallpaper gate AND the glass
+  // gate — they are glass features, so the master switch controls them too
+  // (this test runs with the glass off; the rules ship but never match).
+  // One shared rule, so assert per surface across the selector list; code
+  // blocks additionally get their paint variables pinned to transparent so
+  // the shiki <pre> and the sticky banner clear with the card.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.md-code-block[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.Sixlwa_bubble[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.nyYjTG_file[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /--dsl-code-block-background: transparent/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] code:not\(pre code\) \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] code:not\(pre code\) \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // Approval + ask-user cards join the glass (they paint input-major at full
   // strength); the nested custom-answer block gets a plain tint.
   assert.match(css, /\.mna1RW_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.LVzXQa_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.Mbwy4a_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.Mbwy4a_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.Mbwy4a_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
   // The expanded reasoning row (a sticky header painting `--dsw-alias-bg-base`)
   // gets the glass material instead of the near-black slab.
   assert.match(css, /\.lcKema_root\[data-expanded\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
