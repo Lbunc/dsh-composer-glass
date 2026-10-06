@@ -699,6 +699,16 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   // The sidebar list's built-in bottom fade (an opaque gradient toward the
   // theme fill) reads as a white band over a wallpaper — cleared like chrome.
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade \{ background: none !important; \}/)
+  // Content surfaces (new-session pill, user bubble, code blocks, inline
+  // code, file cards) turn glass under the same gate — one shared rule, so
+  // assert per surface across the selector list; code blocks additionally
+  // get their paint variables pinned to transparent so the shiki <pre> and
+  // the sticky banner clear with the card.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.md-code-block[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.Sixlwa_bubble[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.nyYjTG_file[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /--dsl-code-block-background: transparent/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] code \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // The sidebar column keeps its tinted glass (the sidebar group is on by
   // default), so the wallpaper section must NOT clear it — the two rules
   // would fight and the later one would strip the tint.
