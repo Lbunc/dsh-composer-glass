@@ -20,8 +20,12 @@ import {
   Config,
   DEFAULT_ENABLED,
   SETTINGS_FIELD,
+  WALLPAPER_ROUTE,
   apply as hostApply,
+  kindFor,
+  mimeFor,
   name as hostName,
+  parseRange,
 } from '../lib/index.js'
 
 /** A volatile field resolves to a frozen `{ get() }` reference; unwrap either shape. */
@@ -46,20 +50,67 @@ test('Config: a stored boolean survives resolution, non-boolean input is rejecte
   assert.throws(() => Config({ [SETTINGS_FIELD]: 'off' }), undefined, 'schemastery rejects non-boolean input')
 })
 
-test('host apply: a bodyless line — the Config declaration is the whole contribution', () => {
-  // apply exists only so the Loader line has a body; it must not touch services.
-  hostApply({})
+test('host apply: Config is the whole contribution; the route hook degrades gracefully', () => {
+  // The Config declaration is the real contribution; apply only asks (via the
+  // callback form of ctx.inject) for a webServer and registers the wallpaper
+  // route where one exists — an environment without the service never calls
+  // the callback, so a bare no-op inject must be enough to apply cleanly.
+  hostApply({ inject: () => {} })
 })
 
 // ----------------------------------------------------------------- client half
 
 let importCounter = 0
 
+/** One fake DOM element with just the surface the plugin touches. */
+function makeElement(tag) {
+  const element = {
+    tag,
+    dataset: {},
+    textContent: '',
+    className: '',
+    style: {},
+    attrs: {},
+    listeners: {},
+    children: [],
+    parent: null,
+    connected: true,
+    get isConnected() {
+      return element.connected
+    },
+    get firstChild() {
+      return element.children[0]
+    },
+    appendChild(child) {
+      element.children.push(child)
+      child.parent = element
+    },
+    insertBefore(child) {
+      element.children.unshift(child)
+      child.parent = element
+    },
+    remove() {
+      element.connected = false
+      if (element.parent) element.parent.children = element.parent.children.filter((c) => c !== element)
+    },
+    addEventListener(type, fn) {
+      ;(element.listeners[type] || (element.listeners[type] = [])).push(fn)
+    },
+  }
+  Object.defineProperty(element, 'src', {
+    get: () => element.attrs.src,
+    set: (value) => {
+      element.attrs.src = value
+    },
+  })
+  return element
+}
+
 /** A minimal fake DOM; only the surfaces the plugin actually touches. */
 function makeDocument() {
   const attributes = new Map()
   const styles = []
-  return {
+  const doc = {
     attributes,
     styles,
     documentElement: {
@@ -68,8 +119,14 @@ function makeDocument() {
       removeAttribute: (name) => attributes.delete(name),
     },
     head: { appendChild: (el) => { styles.push(el) } },
-    createElement: (tag) => ({ tag, dataset: {}, textContent: '', remove: () => {} }),
+    createElement: (tag) => makeElement(tag),
+    body: makeElement('body'),
   }
+  doc.head.appendChild = (el) => {
+    styles.push(el)
+    el.parent = doc.head
+  }
+  return doc
 }
 
 /** A React stand-in: createElement builds a plain tree, hooks are inert. */
@@ -240,18 +297,19 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.doesNotMatch(css, /(^|\n)[^:]+\.Dc7zOa_/)
   // The todo dock is one surface for both collapsed and expanded states.
   assert.match(css, /\[data-testid="todo-panel"\]::after/)
-  // Eight glass surfaces plus the card's ::before underlay (the card itself sets
-  // backdrop-filter:none so the slash popover can blur the real page) — nine
+  // Nine glass surfaces (eight composer-area ones plus the sidebar column)
+  // plus the card's ::before underlay (the card itself sets
+  // backdrop-filter:none so the slash popover can blur the real page) — ten
   // blur carriers, each with the prefixed and unprefixed declaration.
-  assert.equal((css.match(/backdrop-filter:\s*blur\(/g) || []).length, 18)
+  assert.equal((css.match(/backdrop-filter:\s*blur\(/g) || []).length, 20)
 
   // The 1px edge line rides on outline (offset -1px), not an inset box-shadow
   // layer: a ring layer scatters into a ~20px fog band on surfaces whose render
   // path carries a backdrop-filter (the card's ::before underlay, the plan
-  // card's own filter). Eight surfaces carry the line — seven through the
+  // card's own filter). Nine surfaces carry the line — eight through the
   // shared material, the goal bar in its own rule.
-  assert.equal((css.match(/outline: 1px solid var\(--dsh-glass-ring\)/g) || []).length, 8)
-  assert.equal((css.match(/outline-offset: -1px/g) || []).length, 8)
+  assert.equal((css.match(/outline: 1px solid var\(--dsh-glass-ring\)/g) || []).length, 9)
+  assert.equal((css.match(/outline-offset: -1px/g) || []).length, 9)
   assert.doesNotMatch(css, /inset 0 0 0 1px/, 'no inset ring layer may remain')
 })
 
@@ -341,10 +399,10 @@ test('client: the page card hosts one tuning panel per surface group', async () 
   const pageTree = card.Component({ t: (key) => key, view: 'page' })
 
   const groups = collectByClass(expand(pageTree.children[1]), 'dsh-glass-group')
-  assert.equal(groups.length, 6, 'six surface groups: card, docks, chips, toBottom, menu, plan')
+  assert.equal(groups.length, 7, 'seven surface groups: card, docks, chips, toBottom, menu, plan, sidebar')
 
   const sliders = collectByClass(expand(pageTree.children[1]), 'dsh-glass-slider')
-  assert.equal(sliders.length, 36, 'six sliders (blur/tint/saturate/brightness/shadow/highlight) per group')
+  assert.equal(sliders.length, 42, 'six sliders (blur/tint/saturate/brightness/shadow/highlight) per group')
 
   const resets = collectByClass(expand(pageTree.children[1]), 'dsh-glass-reset')
   assert.equal(resets.length, 1, 'exactly one reset-to-preset button')
@@ -363,10 +421,10 @@ test('client: group pills and the reset write flat Config fields', async () => {
   groupPills[1].props.onClick()
   assert.deepEqual(form.writes, [['card_on', false]])
 
-  // The reset button restores every group field (6 groups x 7 fields).
+  // The reset button restores every group field (7 groups x 7 fields).
   form.writes.length = 0
   collectByClass(panelTree, 'dsh-glass-reset')[0].props.onClick()
-  assert.equal(form.writes.length, 42)
+  assert.equal(form.writes.length, 49)
   assert.deepEqual(
     form.writes.filter(([field]) => field.startsWith('card_')),
     [
@@ -449,6 +507,7 @@ test('client: global on with every group off restores the shipped chrome', async
     toBottom_on: false,
     menu_on: false,
     plan_on: false,
+    sidebar_on: false,
   })
   const { styles } = await loadAndApply(form)
   const css = styles.map((el) => el.textContent).join('\n')
@@ -457,6 +516,8 @@ test('client: global on with every group off restores the shipped chrome', async
   // down with it — otherwise the page loses its backgrounds with nothing to
   // show for the clearing.
   assert.doesNotMatch(css, /\.wSkVaW_/, 'no chrome-clearing rule may survive all groups off')
+  assert.doesNotMatch(css, /\.Dc7zOa_/, 'no desktop chrome-clearing rule may survive')
+  assert.doesNotMatch(css, /\.pI_x6G_/, 'no wallpaper chrome may leak into a glass-only stylesheet')
   assert.doesNotMatch(css, /backdrop-filter:\s*blur\(/, 'no glass surface rule may survive')
   // The shadow variables stay: inert defaults, not chrome.
   assert.match(css, /--dsh-glass-ring: rgba\(255,255,255,0\.34\)/)
@@ -481,4 +542,210 @@ test('client: a snapshot with no group fields falls back to the preset', async (
   // The preset blur (10px) appears on every glass surface.
   assert.match(css, /blur\(10px\) saturate\(165%\) brightness\(0\.91\)/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.nLMEza_bar::before/)
+})
+
+// ------------------------------------------------------------------- wallpaper
+
+test('host: wallpaper Config fields default to off / empty / cover / 0', () => {
+  const resolved = Config({})
+  assert.equal(unwrap(resolved.wallpaper_on), false)
+  assert.equal(unwrap(resolved.wallpaper_path), '')
+  assert.equal(unwrap(resolved.wallpaper_fit), 'cover')
+  assert.equal(unwrap(resolved.wallpaper_dim), 0)
+  // A stored cover/contain choice survives; anything else normalizes to cover.
+  assert.equal(unwrap(Config({ wallpaper_fit: 'contain' }).wallpaper_fit), 'contain')
+})
+
+test('host: kindFor and mimeFor classify by extension, case-insensitively', () => {
+  assert.equal(kindFor('E:/Pictures/壁纸/1_OceanDream1_4k.jpg'), 'image')
+  assert.equal(kindFor('E:/Pictures/2560x1440pro.MP4'), 'video')
+  assert.equal(kindFor('clip.webm'), 'video')
+  assert.equal(kindFor('no-extension'), null)
+  assert.equal(kindFor('archive.zip'), null)
+  assert.equal(mimeFor('a.JPG'), 'image/jpeg')
+  assert.equal(mimeFor('a.mp4'), 'video/mp4')
+  assert.equal(mimeFor('a.weird'), 'application/octet-stream')
+})
+
+test('host: parseRange honours plain, open, and suffix forms, rejects unsatisfiable ones', () => {
+  assert.equal(parseRange(undefined, 1000), null)
+  assert.equal(parseRange('items=0-5', 1000), null)
+  assert.deepEqual(parseRange('bytes=0-', 1000), { start: 0, end: 999 })
+  assert.deepEqual(parseRange('bytes=100-199', 1000), { start: 100, end: 199 })
+  assert.deepEqual(parseRange('bytes=100-99999', 1000), { start: 100, end: 999 }, 'end clamps to size-1')
+  assert.deepEqual(parseRange('bytes=-100', 1000), { start: 900, end: 999 }, 'suffix = the last N bytes')
+  assert.deepEqual(parseRange('bytes=0-99,200-299', 1000), { start: 0, end: 99 }, 'only the first range of a list')
+  assert.equal(parseRange('bytes=1000-', 1000), 'invalid', 'start beyond the file is unsatisfiable')
+  assert.equal(parseRange('bytes=-0', 1000), 'invalid')
+  assert.equal(parseRange('bytes=5-4', 1000), 'invalid')
+  assert.equal(parseRange('bytes=x-y', 1000), 'invalid')
+})
+
+test('host: apply registers the wallpaper route only where a webServer exists', () => {
+  const registrations = []
+  const injected = []
+  const ctx = {
+    inject: (deps, callback) => injected.push({ deps, callback }),
+    effect: (fn) => fn(),
+    config: {},
+  }
+  hostApply(ctx)
+  assert.equal(injected.length, 1)
+  assert.deepEqual(injected[0].deps, ['webServer'])
+
+  // The web composition answers the inject: one prefix route under /plugins.
+  const dispose = () => {}
+  injected[0].callback({
+    webServer: {
+      register: (route) => {
+        registrations.push(route)
+        return dispose
+      },
+    },
+  })
+  assert.equal(registrations.length, 1)
+  assert.equal(registrations[0].kind, 'prefix')
+  assert.equal(registrations[0].path, WALLPAPER_ROUTE)
+  assert.equal(typeof registrations[0].handler, 'function')
+
+  // The desktop composition never carries a webServer: the callback staying
+  // uncalled is the whole story — nothing throws, nothing registers.
+  hostApply({ inject: () => {}, effect: () => {} })
+})
+
+test('client: the wallpaper starts off and emits nothing', async () => {
+  const form = makeForm()
+  const { doc, styles } = await loadAndApply(form)
+  const css = styles.map((el) => el.textContent).join('\n')
+  assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'off')
+  assert.doesNotMatch(css, /data-dsh-wallpaper/)
+  assert.equal(doc.body.children.length, 0, 'no media layer may exist while off')
+})
+
+test('client: a stored image wallpaper paints the layer and clears the window chrome', async () => {
+  const form = makeForm()
+  form.publish('ready', {
+    enabled: true,
+    wallpaper_on: true,
+    wallpaper_path: 'E:/Pictures/壁纸/wallpaper/1_OceanDream1_4k.jpg',
+  })
+  const { doc, styles } = await loadAndApply(form)
+  const css = styles.map((el) => el.textContent).join('\n')
+
+  assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'on')
+  // One body-level fixed layer: an <img> media element under a dim veil.
+  assert.equal(doc.body.children.length, 1)
+  const layer = doc.body.children[0]
+  assert.equal(layer.tag, 'div')
+  assert.match(String(layer.style.cssText), /z-index:-1/)
+  assert.equal(layer.children.length, 2)
+  assert.equal(layer.children[0].tag, 'img')
+  assert.equal(layer.children[0].attrs.src, '/plugins/dsh-composer-glass/wallpaper')
+  assert.equal(layer.children[0].style.objectFit, 'cover')
+  assert.equal(layer.children[1].style.background, 'rgba(0,0,0,0)', 'dim starts at 0')
+
+  // The wallpaper-gated chrome clearing: body (canvas propagation), the
+  // AppFrame root, the conversation chrome, the inner sidebar root — all
+  // under the wallpaper attribute, none under the glass one.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] body \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.wSkVaW_root/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.hHd-Xa_root \{ background: none !important; \}/)
+  // The sidebar column keeps its tinted glass (the sidebar group is on by
+  // default), so the wallpaper section must NOT clear it — the two rules
+  // would fight and the later one would strip the tint.
+  assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_sidebarCol/)
+})
+
+test('client: a video wallpaper mounts a looping muted video element', async () => {
+  const form = makeForm()
+  form.publish('ready', {
+    enabled: false,
+    wallpaper_on: true,
+    wallpaper_path: 'E:/Pictures/2560x1440pro.mp4',
+    wallpaper_fit: 'contain',
+    wallpaper_dim: 35,
+  })
+  const { doc } = await loadAndApply(form)
+  assert.equal(doc.attributes.get('data-dsh-glass'), 'off', 'the wallpaper runs with the glass off')
+  assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'on')
+
+  const layer = doc.body.children[0]
+  const video = layer.children[0]
+  assert.equal(video.tag, 'video')
+  assert.equal(video.muted, true, 'the autoplay policy requires a muted video')
+  assert.equal(video.loop, true)
+  assert.equal(video.playsInline, true)
+  assert.equal(video.autoplay, true)
+  assert.equal(video.style.objectFit, 'contain')
+  assert.equal(layer.style.background, '#000', 'contained media letterboxes on black')
+  assert.equal(layer.children[1].style.background, 'rgba(0,0,0,0.35)', 'the dim veil follows the slider')
+})
+
+test('client: turning the wallpaper off removes the layer and the attribute', async () => {
+  const form = makeForm()
+  form.publish('ready', {
+    enabled: true,
+    wallpaper_on: true,
+    wallpaper_path: 'E:/Pictures/壁纸/wallpaper/1_OceanDream1_4k.jpg',
+  })
+  const { doc } = await loadAndApply(form)
+  assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'on')
+  assert.equal(doc.body.children.length, 1)
+
+  form.publish('ready', {
+    enabled: true,
+    wallpaper_on: false,
+    wallpaper_path: 'E:/Pictures/壁纸/wallpaper/1_OceanDream1_4k.jpg',
+  })
+  assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'off')
+  assert.equal(doc.body.children.length, 0, 'the layer is torn down with the switch')
+})
+
+test('client: an unknown extension never activates the wallpaper', async () => {
+  const form = makeForm()
+  form.publish('ready', {
+    enabled: true,
+    wallpaper_on: true,
+    wallpaper_path: 'E:/Documents/notes.zip',
+  })
+  const { doc, styles } = await loadAndApply(form)
+  assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'off', 'unknown media, no wallpaper')
+  assert.equal(doc.body.children.length, 0)
+  const css = styles.map((el) => el.textContent).join('\n')
+  // The stylesheet gate follows the attribute, so no wallpaper chrome clears.
+  assert.doesNotMatch(css, /data-dsh-wallpaper/)
+})
+
+test('client: the wallpaper panel writes flat Config fields', async () => {
+  const form = makeForm()
+  form.publish('ready', { enabled: true })
+  const { registered, doc } = await loadAndApply(form)
+  const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
+  const pageTree = card.Component({ t: (key) => key, view: 'page' })
+  const wallpaperBox = collectByClass(expand(pageTree.children[2]), 'dsh-glass-group')[0]
+  assert.ok(wallpaperBox, 'the page card hosts a wallpaper box')
+
+  // The head pills enable the wallpaper first (a path alone shows nothing).
+  const pills = collectByClass(wallpaperBox, 'dsh-glass-pill')
+  assert.equal(pills.length, 4, 'two pill pairs: the on/off switch and the fit choice')
+  pills[0].props.onClick()
+  assert.deepEqual(form.writes, [['wallpaper_on', true]])
+  assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'off', 'no path yet, nothing to show')
+
+  // The path input writes per keystroke and activates the layer at once.
+  const input = collectByClass(wallpaperBox, 'dsh-glass-input')[0]
+  input.props.onChange({ target: { value: 'E:/Pictures/2560x1440pro.mp4' } })
+  assert.deepEqual(form.writes, [['wallpaper_on', true], ['wallpaper_path', 'E:/Pictures/2560x1440pro.mp4']])
+  assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'on')
+  assert.equal(doc.body.children[0].children[0].tag, 'video')
+
+  // The dim slider previews without writing and commits on release.
+  form.writes.length = 0
+  const dimSlider = collectByClass(wallpaperBox, 'dsh-glass-slider')[0]
+  dimSlider.children.find((c) => c.type === 'input').props.onChange({ target: { value: '40' } })
+  assert.deepEqual(form.writes, [], 'a live dim preview must not write')
+  assert.equal(doc.body.children[0].children[1].style.background, 'rgba(0,0,0,0.4)')
+  dimSlider.children.find((c) => c.type === 'input').props.onPointerUp({ target: { value: '40' } })
+  assert.deepEqual(form.writes, [['wallpaper_dim', 40]])
 })
