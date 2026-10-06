@@ -399,10 +399,10 @@ test('client: the page card hosts one tuning panel per surface group', async () 
   const pageTree = card.Component({ t: (key) => key, view: 'page' })
 
   const groups = collectByClass(expand(pageTree.children[1]), 'dsh-glass-group')
-  assert.equal(groups.length, 7, 'seven surface groups: card, docks, chips, toBottom, menu, plan, sidebar')
+  assert.equal(groups.length, 8, 'eight surface groups: card, docks, chips, toBottom, menu, plan, sidebar, content')
 
   const sliders = collectByClass(expand(pageTree.children[1]), 'dsh-glass-slider')
-  assert.equal(sliders.length, 42, 'six sliders (blur/tint/saturate/brightness/shadow/highlight) per group')
+  assert.equal(sliders.length, 48, 'six sliders (blur/tint/saturate/brightness/shadow/highlight) per group')
 
   const resets = collectByClass(expand(pageTree.children[1]), 'dsh-glass-reset')
   assert.equal(resets.length, 1, 'exactly one reset-to-preset button')
@@ -421,10 +421,10 @@ test('client: group pills and the reset write flat Config fields', async () => {
   groupPills[1].props.onClick()
   assert.deepEqual(form.writes, [['card_on', false]])
 
-  // The reset button restores every group field (7 groups x 7 fields).
+  // The reset button restores every group field (8 groups x 7 fields).
   form.writes.length = 0
   collectByClass(panelTree, 'dsh-glass-reset')[0].props.onClick()
-  assert.equal(form.writes.length, 49)
+  assert.equal(form.writes.length, 56)
   assert.deepEqual(
     form.writes.filter(([field]) => field.startsWith('card_')),
     [
@@ -433,10 +433,10 @@ test('client: group pills and the reset write flat Config fields', async () => {
       ['card_tint', 17],
       ['card_saturate', 165],
       ['card_brightness', 91],
-      ['card_shadow', 100],
+      ['card_shadow', 55],
       ['card_highlight', 100],
     ],
-    'reset restores the shipped preset'
+    'reset restores the first-run defaults (the author-tuned values)'
   )
 })
 
@@ -508,6 +508,7 @@ test('client: global on with every group off restores the shipped chrome', async
     menu_on: false,
     plan_on: false,
     sidebar_on: false,
+    content_on: false,
   })
   const { styles } = await loadAndApply(form)
   const css = styles.map((el) => el.textContent).join('\n')
