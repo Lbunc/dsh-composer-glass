@@ -708,7 +708,7 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.Sixlwa_bubble[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.nyYjTG_file[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /--dsl-code-block-background: transparent/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] code \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] code:not\(pre code\) \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // Approval + ask-user cards join the glass (they paint input-major at full
   // strength); the nested custom-answer block gets a plain tint.
   assert.match(css, /\.mna1RW_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
