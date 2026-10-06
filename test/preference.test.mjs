@@ -715,6 +715,9 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.LVzXQa_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.Mbwy4a_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.Mbwy4a_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
+  // The expanded reasoning row (a sticky header painting `--dsw-alias-bg-base`)
+  // gets the glass material instead of the near-black slab.
+  assert.match(css, /\.lcKema_root\[data-expanded\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // The sidebar column keeps its tinted glass (the sidebar group is on by
   // default), so the wallpaper section must NOT clear it — the two rules
   // would fight and the later one would strip the tint.
