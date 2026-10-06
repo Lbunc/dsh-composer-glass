@@ -21,11 +21,11 @@
 
 **开始会话**
 
-<video src="images/01-start.mp4" controls muted playsinline></video>
+<video src="https://github.com/Lbunc/dsh-composer-glass/releases/download/v0.3.2/01-start.mp4" controls muted playsinline></video>
 
 **会话正文**
 
-<video src="images/02-in-conversation.mp4" controls muted playsinline></video>
+<video src="https://github.com/Lbunc/dsh-composer-glass/releases/download/v0.3.2/02-in-conversation.mp4" controls muted playsinline></video>
 
 ## 特性
 

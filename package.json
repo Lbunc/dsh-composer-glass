@@ -13,7 +13,8 @@
   "files": [
     "lib",
     "locale",
-    "images",
+    "images/icon.svg",
+    "images/badge-dsh.svg",
     "cordis.patch.yml",
     "README.md",
     "README.en.md",
