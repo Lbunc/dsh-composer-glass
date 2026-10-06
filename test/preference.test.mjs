@@ -722,6 +722,9 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   // The expanded reasoning row (a sticky header painting `--dsw-alias-bg-base`)
   // gets the glass material instead of the near-black slab.
   assert.match(css, /\.lcKema_root\[data-expanded\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // The plugin-manager page column frosts into one glass panel under the
+  // wallpaper (its rows otherwise sit straight on the photo).
+  assert.match(css, /\.X_2TxG_page \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // The sidebar column keeps its tinted glass (the sidebar group is on by
   // default), so the wallpaper section must NOT clear it — the two rules
   // would fight and the later one would strip the tint.
