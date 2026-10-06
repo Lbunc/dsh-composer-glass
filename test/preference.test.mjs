@@ -300,9 +300,8 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   // Nine glass surfaces (eight composer-area ones plus the sidebar column)
   // plus the card's ::before underlay (the card itself sets
   // backdrop-filter:none so the slash popover can blur the real page) — ten
-  // blur carriers, plus the desktop titlebar strip riding the sidebar's
-  // material — eleven, each with the prefixed and unprefixed declaration.
-  assert.equal((css.match(/backdrop-filter:\s*blur\(/g) || []).length, 22)
+  // blur carriers, each with the prefixed and unprefixed declaration.
+  assert.equal((css.match(/backdrop-filter:\s*blur\(/g) || []).length, 20)
 
   // The 1px edge line rides on outline (offset -1px), not an inset box-shadow
   // layer: a ring layer scatters into a ~20px fog band on surfaces whose render
@@ -324,13 +323,11 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.doesNotMatch(css, /:root\[data-dsh-glass="on"\] \.(?:pI_x6G|BynINW)_sidebarCol \{[^}]*backdrop-filter/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_sidebarCol, :root\[data-dsh-glass="on"\] \.BynINW_sidebarCol \{[^}]*background: transparent !important;/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_sidebarCol::before, :root\[data-dsh-glass="on"\] \.BynINW_sidebarCol::before \{[^}]*z-index: -1;[^}]*backdrop-filter/)
-  // The desktop titlebar drag strip joins the sidebar's material (one frost
-  // from the column through the window top). Desktop-only: the shipped strip
-  // ::before exists only under [data-windows-titlebar]; on web no
-  // .BynINW_frame element exists and the rule sets no content, so it creates
-  // nothing there.
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.BynINW_frame::before \{[^}]*backdrop-filter/)
-  assert.doesNotMatch(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_frame::before \{[^}]*content/)
+  // The desktop titlebar drag strip is deliberately left shipped: it is the
+  // window-caption region, and its theme fill (near-white light / near-black
+  // dark) is what stays consistent with the OS-composited WCO window
+  // controls at its right end. No frost, no wallpaper clear.
+  assert.doesNotMatch(css, /_frame::before/)
 })
 
 test('client: the shipped chrome is restored when the preference is OFF', async () => {
@@ -737,9 +734,9 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   // column (titlebar/rightbar variants paint --dsw-alias-bg-base — the white
   // slab behind the conversation and the plugin page).
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_centerCol, :root\[data-dsh-wallpaper="on"\] \.BynINW_centerCol \{ background: none !important; \}/)
-  // The titlebar drag strip is NOT cleared here: the sidebar glass group is
-  // on by default, and its frost rule owns the strip (a background:none here
-  // would fight the tint — identical importance, later wins).
+  // The titlebar drag strip is never cleared under the wallpaper gate — in
+  // any group state: it is the window-caption region, and its shipped theme
+  // fill stays consistent with the OS-composited WCO window controls.
   assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame::before/)
   assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.BynINW_frame::before/)
   // Content surfaces (new-session pill, user bubble, code blocks, inline
@@ -773,7 +770,7 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.BynINW_sidebarCol/)
 })
 
-test('client: wallpaper with the sidebar group off clears the column and the titlebar strip', async () => {
+test('client: wallpaper with the sidebar group off clears the column', async () => {
   const form = makeForm()
   form.publish('ready', {
     enabled: true,
@@ -784,11 +781,11 @@ test('client: wallpaper with the sidebar group off clears the column and the tit
   const { styles } = await loadAndApply(form)
   const css = styles.map((el) => el.textContent).join('\n')
 
-  // With the sidebar glass group off there is no frost rule to fight: both
-  // the column and the desktop titlebar drag strip fall back to bare
-  // wallpaper under the wallpaper gate.
+  // With the sidebar glass group off there is no frost rule to fight: the
+  // column falls back to bare wallpaper under the wallpaper gate (the
+  // titlebar strip stays shipped in every group state).
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_sidebarCol, :root\[data-dsh-wallpaper="on"\] \.BynINW_sidebarCol \{ background: none !important; \}/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame::before, :root\[data-dsh-wallpaper="on"\] \.BynINW_frame::before \{ background: none !important; \}/)
+  assert.doesNotMatch(css, /_frame::before/)
 })
 
 test('client: the dialogs group owns the approval and ask cards', async () => {
