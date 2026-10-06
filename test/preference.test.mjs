@@ -587,9 +587,8 @@ test('host: apply registers the wallpaper route only where a webServer exists', 
   const ctx = {
     inject: (deps, callback) => injected.push({ deps, callback }),
     effect: (fn) => fn(),
-    config: {},
   }
-  hostApply(ctx)
+  hostApply(ctx, { wallpaper_on: false })
   assert.equal(injected.length, 1)
   assert.deepEqual(injected[0].deps, ['webServer'])
 
@@ -611,6 +610,52 @@ test('host: apply registers the wallpaper route only where a webServer exists', 
   // The desktop composition never carries a webServer: the callback staying
   // uncalled is the whole story — nothing throws, nothing registers.
   hostApply({ inject: () => {}, effect: () => {} })
+})
+
+test('host: the wallpaper handler reads the apply-time config, never ctx.config', async () => {
+  // Regression: cordis 4 gates `ctx.config` behind an inject declaration and
+  // throws `cannot get property "config" without inject` on ANY read. The
+  // original handler read it per-request, so every GET/HEAD rejected and the
+  // webServer wrapper answered a bare 400 — the browser showed a broken-image
+  // glyph in the media box's top-left corner. The handler must work from
+  // apply's second parameter alone, on a ctx that cannot serve config at all.
+  const registerThrough = (config) => {
+    let route
+    const ctx = {
+      inject: (deps, callback) => callback({ webServer: { register: (r) => { route = r; return () => {} } } }),
+      effect: (fn) => fn(),
+    }
+    hostApply(ctx, config)
+    return route.handler
+  }
+  const makeRes = () => {
+    const res = { statusCode: 0, headers: {}, chunks: [] }
+    res.setHeader = (k, v) => { res.headers[k] = v }
+    res.end = (chunk) => { if (chunk) res.chunks.push(chunk) }
+    return res
+  }
+  // Volatile fields arrive as frozen `{ get() }` live references.
+  const ref = (value) => ({ get: () => value })
+
+  const missing = registerThrough({ wallpaper_on: ref(true), wallpaper_path: ref('E:/definitely/missing/wallpaper.jpg') })
+  const res1 = makeRes()
+  await missing({ method: 'GET', headers: {} }, res1)
+  assert.equal(res1.statusCode, 404)
+  assert.match(res1.chunks.join(''), /wallpaper-not-found/)
+
+  // Plain values unwrap identically, so tests and tools can pass bare configs.
+  const plain = registerThrough({ wallpaper_on: true, wallpaper_path: 'E:/definitely/missing/wallpaper.jpg' })
+  const res2 = makeRes()
+  await plain({ method: 'GET', headers: {} }, res2)
+  assert.equal(res2.statusCode, 404)
+  assert.match(res2.chunks.join(''), /wallpaper-not-found/)
+
+  // Switched off — through the same live reference — answers no-wallpaper.
+  const off = registerThrough({ wallpaper_on: ref(false), wallpaper_path: ref('E:/x.jpg') })
+  const res3 = makeRes()
+  await off({ method: 'GET', headers: {} }, res3)
+  assert.equal(res3.statusCode, 404)
+  assert.match(res3.chunks.join(''), /no-wallpaper/)
 })
 
 test('client: the wallpaper starts off and emits nothing', async () => {
