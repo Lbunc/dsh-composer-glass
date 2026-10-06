@@ -687,7 +687,7 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.equal(layer.children[0].tag, 'img')
   assert.equal(layer.children[0].attrs.src, '/plugins/dsh-composer-glass/wallpaper')
   assert.equal(layer.children[0].style.objectFit, 'cover')
-  assert.equal(layer.children[1].style.background, 'rgba(0,0,0,0)', 'dim starts at 0')
+  assert.equal(layer.children[1].style.background, 'rgba(255,255,255,0)', 'dim starts at 0: no veil either way')
 
   // The wallpaper-gated chrome clearing: body (canvas propagation), the
   // AppFrame root, the conversation chrome, the inner sidebar root — all
@@ -738,7 +738,7 @@ test('client: a video wallpaper mounts a looping muted video element', async () 
     wallpaper_on: true,
     wallpaper_path: 'E:/Pictures/2560x1440pro.mp4',
     wallpaper_fit: 'contain',
-    wallpaper_dim: 35,
+    wallpaper_dim: -35,
   })
   const { doc } = await loadAndApply(form)
   assert.equal(doc.attributes.get('data-dsh-glass'), 'off', 'the wallpaper runs with the glass off')
@@ -753,7 +753,7 @@ test('client: a video wallpaper mounts a looping muted video element', async () 
   assert.equal(video.autoplay, true)
   assert.equal(video.style.objectFit, 'contain')
   assert.equal(layer.style.background, '#000', 'contained media letterboxes on black')
-  assert.equal(layer.children[1].style.background, 'rgba(0,0,0,0.35)', 'the dim veil follows the slider')
+  assert.equal(layer.children[1].style.background, 'rgba(0,0,0,0.35)', 'a negative dim veils the wallpaper black')
 })
 
 test('client: turning the wallpaper off removes the layer and the attribute', async () => {
@@ -814,12 +814,17 @@ test('client: the wallpaper panel writes flat Config fields', async () => {
   assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'on')
   assert.equal(doc.body.children[0].children[0].tag, 'video')
 
-  // The dim slider previews without writing and commits on release.
+  // The dim slider previews without writing and commits on release. Positive
+  // values veil the wallpaper white, negative ones black.
   form.writes.length = 0
   const dimSlider = collectByClass(wallpaperBox, 'dsh-glass-slider')[0]
   dimSlider.children.find((c) => c.type === 'input').props.onChange({ target: { value: '40' } })
   assert.deepEqual(form.writes, [], 'a live dim preview must not write')
-  assert.equal(doc.body.children[0].children[1].style.background, 'rgba(0,0,0,0.4)')
+  assert.equal(doc.body.children[0].children[1].style.background, 'rgba(255,255,255,0.4)')
   dimSlider.children.find((c) => c.type === 'input').props.onPointerUp({ target: { value: '40' } })
   assert.deepEqual(form.writes, [['wallpaper_dim', 40]])
+  dimSlider.children.find((c) => c.type === 'input').props.onChange({ target: { value: '-40' } })
+  assert.equal(doc.body.children[0].children[1].style.background, 'rgba(0,0,0,0.4)')
+  dimSlider.children.find((c) => c.type === 'input').props.onPointerUp({ target: { value: '-40' } })
+  assert.deepEqual(form.writes, [['wallpaper_dim', 40], ['wallpaper_dim', -40]])
 })
