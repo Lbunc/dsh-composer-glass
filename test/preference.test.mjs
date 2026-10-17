@@ -276,7 +276,7 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-card\]/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-testid="todo-panel"\]/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.EvIC1a_toBottom\b/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-stats\]/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-stat\]/)
   // The context-usage pill is its own capsule next to the stats pill.
   assert.match(css, /:root\[data-dsh-glass="on"\] \.JObwrW_root\b/)
   // The transcript plan card shares the material (the goal bar frosts itself).
@@ -284,7 +284,7 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   // The goal bar's ::before gets the shared tint/blur, the bar gets the ring.
   assert.match(css, /:root\[data-dsh-glass="on"\] \.nLMEza_bar::before/)
   // Both platform builds are covered in the SAME rule: the web build (hashes
-  // stable across dsh 0.1.7 → 0.2.0-rc.2) and the desktop (DeepSeek Harness)
+  // stable across dsh 0.1.7 → 0.2.1-rc.1) and the desktop (DeepSeek Harness)
   // build share no hashed prefix — the split is per-platform packaging, not a
   // version boundary — so each hashed surface lists its desktop counterpart
   // alongside, gated individually.

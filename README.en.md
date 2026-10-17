@@ -10,7 +10,7 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper → Configure
 
 [![npm version](https://img.shields.io/npm/v/dsh-composer-glass?color=blue)](https://www.npmjs.com/package/dsh-composer-glass)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![DSH 0.2.0-rc.2](images/badge-dsh.svg)](https://www.npmjs.com/package/@deepseek-ai/dsh)
+[![DSH Version](https://raw.githubusercontent.com/Lbunc/dsh-composer-glass/main/images/badge-dsh.svg)](https://www.npmjs.com/package/@deepseek-ai/dsh)
 [![Type: DSH Plugin](https://img.shields.io/badge/Type-DSH%20Plugin-8A2BE2.svg)](https://github.com/topics/dsh-plugin)
 
 </div>
@@ -112,7 +112,7 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper: the row switch toggles th
 
 | Item | Description |
 | :- | :- |
-| DSH version | ≥ 0.1.7-rc.1 (tested against 0.2.0-rc.2); 0.1.6 and older are not supported — use plugin v0.3.0+ |
+| DSH version | ≥ 0.1.7-rc.1 (tested against 0.2.1-rc.1); 0.1.6 and older are not supported — use plugin v0.3.0+ |
 | Platform | Frosted glass and dynamic wallpaper: both web and desktop (Harness) |
 
 ## Development

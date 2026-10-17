@@ -10,7 +10,7 @@
 
 [![npm version](https://img.shields.io/npm/v/dsh-composer-glass?color=blue)](https://www.npmjs.com/package/dsh-composer-glass)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![DSH 0.2.0-rc.2](images/badge-dsh.svg)](https://www.npmjs.com/package/@deepseek-ai/dsh)
+[![DSH Version](https://raw.githubusercontent.com/Lbunc/dsh-composer-glass/main/images/badge-dsh.svg)](https://www.npmjs.com/package/@deepseek-ai/dsh)
 [![Type: DSH Plugin](https://img.shields.io/badge/Type-DSH%20Plugin-8A2BE2.svg)](https://github.com/topics/dsh-plugin)
 
 </div>
@@ -112,7 +112,7 @@
 
 | 项目 | 说明 |
 | :- | :- |
-| DSH 版本 | ≥ 0.1.7-rc.1（0.2.0-rc.2 实测）；0.1.6 及更早不支持，插件请用 v0.3.0 及以上 |
+| DSH 版本 | ≥ 0.1.7-rc.1（0.2.1-rc.1 实测）；0.1.6 及更早不支持，插件请用 v0.3.0 及以上 |
 | 平台 | 毛玻璃与动态壁纸：web 与 desktop（Harness）双平台 |
 
 ## 开发
