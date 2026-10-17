@@ -64,6 +64,8 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper → Configure
 | Content surfaces | Content surfaces over the wallpaper (see feature 2) |
 | Dialog cards | Approval card, question / option / answer bubbles |
 
+The status-capsule group carries one extra **Layout** switch: **Merged** (default) wraps the two stats in ONE capsule, **Split** frosts each stat separately.
+
 Sliders per group:
 
 | Slider | Range | Preset |

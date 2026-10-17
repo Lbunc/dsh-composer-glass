@@ -276,7 +276,9 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-card\]/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \[data-testid="todo-panel"\]/)
   assert.match(css, /:root\[data-dsh-glass="on"\] \.EvIC1a_toBottom\b/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-stat\]/)
+  // The two stat pills ride ONE glass capsule rebuilt on the dock's slot
+  // wrapper (0.2.1 split the old combined chip into per-pill anchors).
+  assert.match(css, /:root\[data-dsh-glass="on"\] \[data-slot="conversation\.composer\.dock"\]:has\(\[data-composer-stat\]\)/)
   // The context-usage pill is its own capsule next to the stats pill.
   assert.match(css, /:root\[data-dsh-glass="on"\] \.JObwrW_root\b/)
   // The transcript plan card shares the material (the goal bar frosts itself).
@@ -328,6 +330,28 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   // dark) is what stays consistent with the OS-composited WCO window
   // controls at its right end. No frost, no wallpaper clear.
   assert.doesNotMatch(css, /_frame::before/)
+})
+
+test('client: the chips layout switch picks merged capsule vs split pills', async () => {
+  // Default (no stored choice): ONE glass capsule rebuilt on the dock's slot
+  // wrapper hugging both stat pills; the pills themselves stay unstyled.
+  {
+    const form = makeForm()
+    const { styles } = await loadAndApply(form)
+    const css = styles.map((el) => el.textContent).join('\n')
+    assert.match(css, /:root\[data-dsh-glass="on"\] \[data-slot="conversation\.composer\.dock"\]:has\(\[data-composer-stat\]\)/)
+    assert.doesNotMatch(css, /:root\[data-dsh-glass="on"\] \[data-composer-stat\] \{/, 'merged mode leaves the pills transparent')
+  }
+  // Split: each stat pill carries its own frosted surface and the slot
+  // wrapper stays `display:contents` — no capsule rule may exist.
+  {
+    const form = makeForm()
+    form.publish('ready', { enabled: true, chips_style: 'split' })
+    const { styles } = await loadAndApply(form)
+    const css = styles.map((el) => el.textContent).join('\n')
+    assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-stat\] \{/)
+    assert.doesNotMatch(css, /conversation\.composer\.dock/, 'split mode must not touch the slot wrapper')
+  }
 })
 
 test('client: the shipped chrome is restored when the preference is OFF', async () => {
@@ -442,10 +466,11 @@ test('client: group pills and the reset write flat Config fields', async () => {
   groupPills[1].props.onClick()
   assert.deepEqual(form.writes, [['card_on', false]])
 
-  // The reset button restores every group field (7 groups x 7 fields).
+  // The reset button restores every group field (7 groups x 7 fields, plus
+  // the chips group's layout choice).
   form.writes.length = 0
   collectByClass(panelTree, 'dsh-glass-reset')[0].props.onClick()
-  assert.equal(form.writes.length, 49)
+  assert.equal(form.writes.length, 50)
   assert.deepEqual(
     form.writes.filter(([field]) => field.startsWith('card_')),
     [
