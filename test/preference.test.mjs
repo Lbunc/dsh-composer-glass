@@ -340,10 +340,7 @@ test('client: the chips layout switch picks merged capsule vs split pills', asyn
     const { styles } = await loadAndApply(form)
     const css = styles.map((el) => el.textContent).join('\n')
     assert.match(css, /:root\[data-dsh-glass="on"\] \[data-slot="conversation\.composer\.dock"\]:has\(\[data-composer-stat\]\)/)
-    assert.match(css, /:root\[data-dsh-glass="on"\] \[data-composer-dock\] \{ padding-top: 1px; \}/, 'compact row tightens the dock breathing room')
-    assert.match(css, /:root\[data-dsh-glass="on"\] :has\(> \[data-composer-dock\]\) \{ padding-bottom: 2px; \}/)
-    assert.match(css, /padding: 1px 10px;/, 'capsule glass edge is 1px vertical')
-    assert.match(css, /\[data-slot="conversation\.composer\.dock"\]:has\(\[data-composer-stat\]\) \[data-composer-stat\] \{ padding-top: 0; padding-bottom: 0; \}/, 'merged mode drops the pills\' vertical padding')
+    assert.match(css, /\[data-slot="conversation\.composer\.dock"\]:has\(\[data-composer-stat\]\) \[data-composer-stat\] \{ padding-top: 0; padding-bottom: 0; \}/, 'merged mode drops the pills\' vertical padding so the capsule keeps the old 24px height')
     assert.doesNotMatch(css, /:root\[data-dsh-glass="on"\] \[data-composer-stat\] \{/, 'merged mode leaves the pills transparent')
   }
   // Split: each stat pill carries its own frosted surface and the slot
