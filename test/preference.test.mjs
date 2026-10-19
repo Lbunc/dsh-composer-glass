@@ -792,8 +792,15 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.Mbwy4a_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.Mbwy4a_customBlock, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.mAtvLq_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
   // The expanded reasoning row (a sticky header painting `--dsw-alias-bg-base`)
-  // gets the glass material instead of the near-black slab.
-  assert.match(css, /\.lcKema_root\[data-expanded\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // gets the glass material instead of the near-black slab. The frost must
+  // sit on the sticky `[data-disclosure-header]` — the node that owns the
+  // opaque fill — never on the paint-less `[data-disclosure-row]` nested
+  // inside it (that only blurs the already-opaque fill: same solid slab).
+  assert.match(css, /\.lcKema_root\[data-expanded\] \[data-open\] \[data-disclosure-header\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.doesNotMatch(css, /\[data-disclosure-row\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // The header cap gets rounded top corners (bottom edge continues into the
+  // body) under both theme gates.
+  assert.match(css, /\.lcKema_root\[data-expanded\] \[data-open\] \[data-disclosure-header\][^{]*\{ border-radius: 10px 10px 0 0; \}/)
   // The plugin-manager page column frosts into one glass panel under the
   // wallpaper (its rows otherwise sit straight on the photo) — both builds.
   assert.match(css, /\.X_2TxG_page, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.fO69Vq_page \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
