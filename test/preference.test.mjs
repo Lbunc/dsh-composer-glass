@@ -780,6 +780,11 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.nyYjTG_file[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /--dsl-code-block-background: transparent/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] code:not\(pre code\) \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // Chromium samples an inline box's backdrop THROUGH its own text, so a
+  // chip that wraps across lines renders frosted illegible — the plugin pins
+  // frosted chips to atomic inline-block boxes under both theme gates.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] code:not\(pre code\) \{[^}]*display: inline-block;[^}]*max-width: 100%;/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] body\[data-ds-dark-theme\] code:not\(pre code\) \{ display: inline-block; max-width: 100%; \}/)
   // Approval + ask-user cards join the glass (they paint input-major at full
   // strength); the nested custom-answer block gets a plain tint.
   assert.match(css, /\.mna1RW_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
