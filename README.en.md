@@ -48,7 +48,10 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper → Configure
 | Setting | Description |
 | :---------------- | :----------------------------------------------------------------------------------------------------------- |
 | Show wallpaper | Images (jpg / png / webp / gif / avif / bmp / svg) or videos (mp4 / webm / mov / mkv, etc.); videos loop muted |
-| File path | Local absolute path, read by the Host, never sent over the network; **after adding a path, refresh the browser on web, restart the app on desktop** |
+| Default wallpaper | While the profile's plugin config has never carried any wallpaper field (a fresh install, or never set/toggled), the bundled default wallpaper enables itself with its path and 75% brighten; once any wallpaper setting exists (including a manual off), the plugin never touches it again |
+| Readability tip | Light wallpapers pair best with the light theme — raise "Dim / Brighten" (a white veil) for better text legibility; dark wallpapers the opposite — pair with the dark theme and lower the value, or go negative (a black veil) to darken the backdrop |
+| File path | Local absolute path (Windows `copy as path` quotes are stripped automatically), or press Browse… to pick a file in the system dialog — the chosen file is copied to `~/.dsh/storages/composer-glass/` (512 MiB cap; the panel shows an error line when exceeded) and the path filled in |
+| Keep past wallpapers | Keep all (default): every picked file stays in the storage directory; Current only: once a new file lands, previously plugin-copied wallpapers are pruned (only `wallpaper-<timestamp>` files are removed — nothing else in the directory, and hand-typed paths are never touched) |
 | Fit | Cover / Contain |
 | Dim / Brighten | −100 to +100: negative overlays a black veil, positive a white one |
 
@@ -116,11 +119,6 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper: the row switch toggles th
 | :- | :- |
 | DSH version | ≥ 0.1.7-rc.1 (tested against 0.2.1-rc.1); 0.1.6 and older are not supported — use plugin v0.3.0+ |
 | Platform | Frosted glass and dynamic wallpaper: both web and desktop (Harness) |
-
-## Development
-
-- Tests: `node --test test/`
-- Layout: `lib/index.js` is the Host half (volatile Config, wallpaper HTTP route with Range streaming and ETag negotiation); `lib/client.js` is the browser half (material styles and the config card, hand-drawn HTML, no UI-primitive dependency)
 
 ## License
 

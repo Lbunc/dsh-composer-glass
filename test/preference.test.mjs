@@ -16,16 +16,27 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, sep } from 'node:path'
 import {
   Config,
   DEFAULT_ENABLED,
   SETTINGS_FIELD,
   WALLPAPER_ROUTE,
+  WALLPAPER_STATUS_ROUTE,
+  WALLPAPER_UPLOAD_ROUTE,
   apply as hostApply,
+  discoverOwnProfile,
+  discoverPatchPath,
   kindFor,
   mimeFor,
   name as hostName,
+  normalizeWallpaperPath,
   parseRange,
+  patchWallpaperVirgin,
+  saveWallpaperUpload,
+  wallpaperStatus,
 } from '../lib/index.js'
 
 /** A volatile field resolves to a frozen `{ get() }` reference; unwrap either shape. */
@@ -96,6 +107,7 @@ function makeElement(tag) {
     addEventListener(type, fn) {
       ;(element.listeners[type] || (element.listeners[type] = [])).push(fn)
     },
+    click() {},
   }
   Object.defineProperty(element, 'src', {
     get: () => element.attrs.src,
@@ -129,13 +141,39 @@ function makeDocument() {
   return doc
 }
 
-/** A React stand-in: createElement builds a plain tree, hooks are inert. */
+/**
+ * A React stand-in: createElement builds a plain tree, hooks are inert except
+ * that `useRef`/`useReducer` slots persist across renders — real refs survive
+ * a re-render, and panel state (a pick error line) is read back after acting.
+ * Call `resetHooks()` before every manual `Component(...)` render so the slot
+ * cursor starts at 0 and re-renders address the same slots.
+ */
+const hookSlots = []
+let hookCursor = 0
+
+function resetHooks() {
+  hookCursor = 0
+}
+
 function makeReact() {
   return {
     createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
-    useState: (initial) => [initial, () => {}],
+    useState: (initial) => {
+      const slot = (hookSlots[hookCursor] ||= { value: initial })
+      hookCursor++
+      return [slot.value, () => {}]
+    },
     useEffect: (effect) => effect(),
-    useReducer: (reducer, initial) => [initial, () => {}],
+    useReducer: (reducer, initial) => {
+      const slot = (hookSlots[hookCursor] ||= { value: initial })
+      hookCursor++
+      return [slot.value, () => {}]
+    },
+    useRef: (initial) => {
+      const slot = (hookSlots[hookCursor] ||= { current: initial })
+      hookCursor++
+      return slot
+    },
   }
 }
 
@@ -595,14 +633,17 @@ test('client: a snapshot with no group fields falls back to the preset', async (
 
 // ------------------------------------------------------------------- wallpaper
 
-test('host: wallpaper Config fields default to off / empty / cover / 0', () => {
+test('host: wallpaper Config fields default to off / empty / cover / 0 / keep', () => {
   const resolved = Config({})
   assert.equal(unwrap(resolved.wallpaper_on), false)
   assert.equal(unwrap(resolved.wallpaper_path), '')
   assert.equal(unwrap(resolved.wallpaper_fit), 'cover')
   assert.equal(unwrap(resolved.wallpaper_dim), 0)
+  // Keeping every upload is the safe default; only an explicit false prunes.
+  assert.equal(unwrap(resolved.wallpaper_keep), true)
   // A stored cover/contain choice survives; anything else normalizes to cover.
   assert.equal(unwrap(Config({ wallpaper_fit: 'contain' }).wallpaper_fit), 'contain')
+  assert.equal(unwrap(Config({ wallpaper_keep: false }).wallpaper_keep), false)
 })
 
 test('host: kindFor and mimeFor classify by extension, case-insensitively', () => {
@@ -651,10 +692,18 @@ test('host: apply registers the wallpaper route only where a webServer exists', 
       },
     },
   })
-  assert.equal(registrations.length, 1)
+  assert.equal(registrations.length, 3)
   assert.equal(registrations[0].kind, 'prefix')
   assert.equal(registrations[0].path, WALLPAPER_ROUTE)
   assert.equal(typeof registrations[0].handler, 'function')
+  // The upload route is exact and nests under the serving prefix.
+  assert.equal(registrations[1].kind, 'exact')
+  assert.equal(registrations[1].path, WALLPAPER_UPLOAD_ROUTE)
+  assert.equal(typeof registrations[1].handler, 'function')
+  // The status route (first-install probe) is exact as well.
+  assert.equal(registrations[2].kind, 'exact')
+  assert.equal(registrations[2].path, WALLPAPER_STATUS_ROUTE)
+  assert.equal(typeof registrations[2].handler, 'function')
 
   // The desktop composition never carries a webServer: the callback staying
   // uncalled is the whole story — nothing throws, nothing registers.
@@ -671,7 +720,16 @@ test('host: the wallpaper handler reads the apply-time config, never ctx.config'
   const registerThrough = (config) => {
     let route
     const ctx = {
-      inject: (deps, callback) => callback({ webServer: { register: (r) => { route = r; return () => {} } } }),
+      inject: (deps, callback) => callback({
+        webServer: {
+          // Two routes register now; the serve handler is the one under the
+          // wallpaper prefix (apply also registers the exact upload route).
+          register: (r) => {
+            if (r.path === WALLPAPER_ROUTE) route = r
+            return () => {}
+          },
+        },
+      }),
       effect: (fn) => fn(),
     }
     hostApply(ctx, config)
@@ -705,6 +763,205 @@ test('host: the wallpaper handler reads the apply-time config, never ctx.config'
   await off({ method: 'GET', headers: {} }, res3)
   assert.equal(res3.statusCode, 404)
   assert.match(res3.chunks.join(''), /no-wallpaper/)
+
+  // Windows `copy as path` quotes must stat like the bare path.
+  const quoted = registerThrough({ wallpaper_on: true, wallpaper_path: '"E:/quoted path/wallpaper.jpg"' })
+  const res4 = makeRes()
+  await quoted({ method: 'GET', headers: {} }, res4)
+  assert.equal(res4.statusCode, 404)
+  assert.match(res4.chunks.join(''), /wallpaper-not-found/)
+})
+
+test('host: normalizeWallpaperPath strips one surrounding quote pair', () => {
+  assert.equal(normalizeWallpaperPath('"E:\\Pictures\\壁纸\\a.jpg"'), 'E:\\Pictures\\壁纸\\a.jpg')
+  assert.equal(normalizeWallpaperPath("'E:/a b/c.png'"), 'E:/a b/c.png')
+  assert.equal(normalizeWallpaperPath('  E:/a.jpg  '), 'E:/a.jpg')
+  // An unmatched quote is content, not a wrapper — it survives untouched.
+  assert.equal(normalizeWallpaperPath('"E:/a.jpg'), '"E:/a.jpg')
+  assert.equal(normalizeWallpaperPath(''), '')
+  assert.equal(normalizeWallpaperPath(null), '')
+})
+
+test('host: the upload route stores picked files under the plugin storage dir', async () => {
+  const makeRes = () => {
+    const res = { statusCode: 0, headers: {}, chunks: [] }
+    res.setHeader = (k, v) => { res.headers[k] = v }
+    res.writeHead = (code) => { res.statusCode = code }
+    res.end = (chunk) => { if (chunk) res.chunks.push(chunk) }
+    return res
+  }
+  // A bare req surface with deferred event firing, like node:http streams.
+  const makeReq = (headers) => {
+    const cbs = {}
+    return {
+      method: 'POST',
+      headers,
+      on: (ev, cb) => { (cbs[ev] ||= []).push(cb) },
+      fire: (ev, ...args) => { for (const cb of cbs[ev] || []) cb(...args) },
+      destroyed: false,
+      destroy() { this.destroyed = true },
+    }
+  }
+  const prevHome = process.env.DSH_HOME
+  const tmp = await mkdtemp(join(tmpdir(), 'dsh-glass-upload-'))
+  process.env.DSH_HOME = tmp
+  try {
+    const handler = saveWallpaperUpload()
+
+    // A happy path: the bytes land under storages/composer-glass with the
+    // original extension and the answer carries the stored absolute path.
+    const req = makeReq({ 'x-dsh-filename': encodeURIComponent('我的壁纸.PNG') })
+    const res = makeRes()
+    const done = handler(req, res)
+    req.fire('data', Buffer.from('hello '))
+    req.fire('data', Buffer.from('world'))
+    req.fire('end')
+    await done
+    assert.equal(res.statusCode, 200)
+    const body = JSON.parse(res.chunks.join(''))
+    assert.match(body.path, /storages[/\\]composer-glass[/\\]wallpaper-\d+\.png$/)
+    assert.equal(await readFile(body.path, 'utf8'), 'hello world')
+
+    // An unknown extension is refused before any byte is read.
+    const badKind = makeReq({ 'x-dsh-filename': 'notes.txt' })
+    const resBad = makeRes()
+    await handler(badKind, resBad)
+    assert.equal(resBad.statusCode, 415)
+
+    // Wrong method is refused.
+    const wrongMethod = makeReq({})
+    wrongMethod.method = 'GET'
+    const resMethod = makeRes()
+    await handler(wrongMethod, resMethod)
+    assert.equal(resMethod.statusCode, 405)
+
+    // An empty body is refused.
+    const empty = makeReq({ 'x-dsh-filename': 'a.jpg' })
+    const resEmpty = makeRes()
+    const doneEmpty = handler(empty, resEmpty)
+    empty.fire('end')
+    await doneEmpty
+    assert.equal(resEmpty.statusCode, 400)
+
+    // Keep-only-current (`wallpaper_keep: false`): after the fresh file
+    // lands, earlier plugin-generated uploads are pruned; foreign files in
+    // the directory are never touched.
+    const storeDir = join(tmp, 'storages', 'composer-glass')
+    const oldWall = join(storeDir, 'wallpaper-42.jpg')
+    const foreign = join(storeDir, 'notes.txt')
+    await mkdir(storeDir, { recursive: true })
+    await writeFile(oldWall, 'stale')
+    await writeFile(foreign, 'mine')
+    const pruner = saveWallpaperUpload({ wallpaper_keep: false })
+    const reqPrune = makeReq({ 'x-dsh-filename': 'b.png' })
+    const resPrune = makeRes()
+    const donePrune = pruner(reqPrune, resPrune)
+    reqPrune.fire('data', Buffer.from('fresh'))
+    reqPrune.fire('end')
+    await donePrune
+    assert.equal(resPrune.statusCode, 200)
+    const stored = JSON.parse(resPrune.chunks.join('')).path
+    assert.equal(await readFile(stored, 'utf8'), 'fresh')
+    await assert.rejects(() => readFile(oldWall), 'the stale upload is pruned')
+    assert.equal(await readFile(foreign, 'utf8'), 'mine', 'foreign files survive')
+
+    // Default (keep-all): the previous upload stays.
+    const keeper = saveWallpaperUpload({})
+    const reqKeep = makeReq({ 'x-dsh-filename': 'c.png' })
+    const resKeep = makeRes()
+    const doneKeep = keeper(reqKeep, resKeep)
+    reqKeep.fire('data', Buffer.from('kept'))
+    reqKeep.fire('end')
+    await doneKeep
+    assert.equal(resKeep.statusCode, 200)
+    assert.equal(await readFile(stored, 'utf8'), 'fresh', 'the earlier upload survives by default')
+  } finally {
+    if (prevHome === undefined) delete process.env.DSH_HOME
+    else process.env.DSH_HOME = prevHome
+    await rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('host: patchWallpaperVirgin reads user history from the row config, not row existence', () => {
+  // No patch text / no row at all: a virgin profile.
+  assert.equal(patchWallpaperVirgin(null), true)
+  assert.equal(patchWallpaperVirgin('other: text'), true)
+  assert.equal(patchWallpaperVirgin(''), true)
+  // The row exists (dsh writes it on install) with no wallpaper keys: virgin.
+  assert.equal(patchWallpaperVirgin('- id: composer-glass\n  name: dsh-composer-glass\n  config:\n    enabled: true\n  disabled: false\n- id: ui-settings\n'), true)
+  // Any persisted wallpaper_* key is a user gesture: never reseed.
+  assert.equal(patchWallpaperVirgin('- id: composer-glass\n  config:\n    wallpaper_on: false\n'), false, 'an explicit off vetoes seeding')
+  assert.equal(patchWallpaperVirgin('- id: composer-glass\n  config:\n    wallpaper_path: E:/mine.jpg\n    wallpaper_on: true\n'), false)
+  // The block ends at the next column-0 `- id:` — another row's keys don't count.
+  assert.equal(patchWallpaperVirgin('- id: composer-glass\n  config:\n    enabled: true\n- id: other\n  config:\n    wallpaper_on: true\n'), true)
+  // The row's own id must anchor exactly (another row merely mentioning the name is not the row).
+  assert.equal(patchWallpaperVirgin('  path: /plugins/dsh-composer-glass/wallpaper\n'), true)
+})
+
+test('host: discoverOwnProfile finds the profile whose plugin dir resolves back to this package', async () => {
+  const tmp = await mkdtemp(join(tmpdir(), 'dsh-glass-discover-'))
+  try {
+    // A real install layout: profiles/web/node_modules/dsh-composer-glass.
+    const self = join(tmp, 'profiles', 'web', 'node_modules', 'dsh-composer-glass')
+    await mkdir(self, { recursive: true })
+    assert.equal(discoverOwnProfile(join(tmp, 'profiles'), self), join(tmp, 'profiles', 'web'))
+    assert.equal(discoverPatchPath(join(tmp, 'profiles'), self), join(tmp, 'profiles', 'web', 'cordis.patch.yml'))
+    // A second profile pointing elsewhere (a stale junction target) is skipped.
+    await mkdir(join(tmp, 'profiles', 'desktop', 'node_modules', 'dsh-composer-glass'), { recursive: true })
+    assert.equal(discoverOwnProfile(join(tmp, 'profiles'), self), join(tmp, 'profiles', 'web'), 'the matching profile wins')
+    // Nothing matches a foreign self path.
+    assert.equal(discoverOwnProfile(join(tmp, 'profiles'), join(tmp, 'elsewhere')), null)
+    // A missing profiles dir yields null instead of throwing.
+    assert.equal(discoverOwnProfile(join(tmp, 'nonexistent'), self), null)
+  } finally {
+    await rm(tmp, { recursive: true, force: true })
+  }
+})
+
+test('host: the status route seeds only a wallpaper-virgin profile with an existing asset', async () => {
+  const tmp = await mkdtemp(join(tmpdir(), 'dsh-glass-status-'))
+  const makeJsonRes = () => ({ statusCode: 0, headers: {}, chunks: [], setHeader(k, v) { this.headers[k] = v }, end(data) { this.chunks.push(data) } })
+  try {
+    const asset = join(tmp, 'assets', 'wallpaper-default.jpg')
+    await mkdir(join(tmp, 'assets'), { recursive: true })
+    await writeFile(asset, 'asset-bytes')
+    const patchPath = join(tmp, 'cordis.patch.yml')
+
+    // Fresh profile: no patch file at all → seed, and the asset path rides along.
+    const fresh = wallpaperStatus(patchPath, asset)
+    const resFresh = makeJsonRes()
+    await fresh({ method: 'GET' }, resFresh)
+    assert.equal(resFresh.statusCode, 200)
+    assert.deepEqual(JSON.parse(resFresh.chunks.join('')), { seed: true, path: asset })
+
+    // An existing install: the row carries a persisted wallpaper key → never seeded.
+    await writeFile(patchPath, 'plugins:\n  - id: composer-glass\n    name: dsh-composer-glass\n    config:\n      enabled: true\n      wallpaper_on: false\n')
+    const existing = wallpaperStatus(patchPath, asset)
+    const resExisting = makeJsonRes()
+    await existing({ method: 'GET' }, resExisting)
+    assert.deepEqual(JSON.parse(resExisting.chunks.join('')), { seed: false, path: asset })
+
+    // A row with NO wallpaper keys (dsh writes the row on install itself) still seeds.
+    await writeFile(patchPath, 'plugins:\n  - id: composer-glass\n    name: dsh-composer-glass\n    config:\n      enabled: true\n')
+    const rowOnly = wallpaperStatus(patchPath, asset)
+    const resRowOnly = makeJsonRes()
+    await rowOnly({ method: 'GET' }, resRowOnly)
+    assert.deepEqual(JSON.parse(resRowOnly.chunks.join('')), { seed: true, path: asset })
+
+    // A missing asset (broken package) never seeds a dead path.
+    const broken = wallpaperStatus(patchPath, join(tmp, 'assets', 'missing.jpg'))
+    const resBroken = makeJsonRes()
+    await broken({ method: 'GET' }, resBroken)
+    assert.deepEqual(JSON.parse(resBroken.chunks.join('')), { seed: false, path: join(tmp, 'assets', 'missing.jpg') })
+
+    // A dev checkout (patchPath null) answers false regardless.
+    const dev = wallpaperStatus(null, asset)
+    const resDev = makeJsonRes()
+    await dev({ method: 'GET' }, resDev)
+    assert.deepEqual(JSON.parse(resDev.chunks.join('')), { seed: false, path: asset })
+  } finally {
+    await rm(tmp, { recursive: true, force: true })
+  }
 })
 
 test('client: the wallpaper starts off and emits nothing', async () => {
@@ -734,7 +991,11 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(String(layer.style.cssText), /z-index:-1/)
   assert.equal(layer.children.length, 2)
   assert.equal(layer.children[0].tag, 'img')
-  assert.equal(layer.children[0].attrs.src, '/plugins/dsh-composer-glass/wallpaper')
+  // The media URL is cache-busted by the configured path: a pick or edit
+  // changes the query, so the browser fetches the new file instead of
+  // reusing the decoded-image cache of the old one (keyed by URL, it skips
+  // HTTP revalidation — a same-URL swap used to stick until a restart).
+  assert.equal(layer.children[0].attrs.src, '/plugins/dsh-composer-glass/wallpaper?v=' + encodeURIComponent('E:/Pictures/壁纸/wallpaper/1_OceanDream1_4k.jpg'))
   assert.equal(layer.children[0].style.objectFit, 'cover')
   assert.equal(layer.children[1].style.background, 'rgba(255,255,255,0)', 'dim starts at 0: no veil either way')
 
@@ -918,15 +1179,18 @@ test('client: the wallpaper panel writes flat Config fields', async () => {
 
   // The head pills enable the wallpaper first (a path alone shows nothing).
   const pills = collectByClass(wallpaperBox, 'dsh-glass-pill')
-  assert.equal(pills.length, 4, 'two pill pairs: the on/off switch and the fit choice')
+  assert.equal(pills.length, 6, 'three pill pairs: the on/off switch, the fit choice and the keep choice')
   pills[0].props.onClick()
   assert.deepEqual(form.writes, [['wallpaper_on', true]])
   assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'off', 'no path yet, nothing to show')
 
-  // The path input writes per keystroke and activates the layer at once.
+  // The path input writes per keystroke; the media sync (fetch) waits for
+  // the Host to ack the write — the serve route keeps serving the OLD file
+  // until then, so syncing early would show one pick behind.
   const input = collectByClass(wallpaperBox, 'dsh-glass-input')[0]
   input.props.onChange({ target: { value: 'E:/Pictures/2560x1440pro.mp4' } })
   assert.deepEqual(form.writes, [['wallpaper_on', true], ['wallpaper_path', 'E:/Pictures/2560x1440pro.mp4']])
+  await new Promise((resolve) => setTimeout(resolve, 0))
   assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'on')
   assert.equal(doc.body.children[0].children[0].tag, 'video')
 
@@ -943,4 +1207,108 @@ test('client: the wallpaper panel writes flat Config fields', async () => {
   assert.equal(doc.body.children[0].children[1].style.background, 'rgba(0,0,0,0.4)')
   dimSlider.children.find((c) => c.type === 'input').props.onPointerUp({ target: { value: '-40' } })
   assert.deepEqual(form.writes, [['wallpaper_dim', 40], ['wallpaper_dim', -40]])
+})
+
+test('client: the picker pre-checks the size cap and uploads small files', async () => {
+  const form = makeForm()
+  form.publish('ready', { enabled: true, wallpaper_on: true })
+  const { doc, registered } = await loadAndApply(form)
+  const card = registered.find((entry) => entry.options.name === 'plugins.row.config')
+  // WallpaperPanel's hooks run inside expand() (where function components are
+  // invoked), so the slot cursor must reset around the whole render+expand.
+  const renderBox = () => {
+    resetHooks()
+    const tree = card.Component({ t: (key) => key, view: 'page' })
+    return collectByClass(expand(tree.children[0]), 'dsh-glass-group')[0]
+  }
+  const wallpaperBox = renderBox()
+
+  const calls = []
+  const realFetch = globalThis.fetch
+  globalThis.fetch = (url, options) => {
+    calls.push([String(url), options])
+    return Promise.resolve({ ok: true, json: async () => ({ path: 'C:/stored/wallpaper-9.png' }) })
+  }
+  try {
+    // Browse mounts a hidden file input and opens the OS dialog.
+    const browse = collectByClass(wallpaperBox, 'dsh-glass-reset')[0]
+    browse.props.onClick()
+    const input = doc.body.children.find((el) => el.tag === 'input')
+    assert.ok(input, 'the hidden file input is mounted')
+
+    // Oversize: refused before any byte travels, and the failure is surfaced
+    // in the box as an error line (512 MiB cap, mirrored from the Host).
+    input.files = [{ name: 'huge.png', size: 513 * 1024 * 1024 }]
+    input.onchange()
+    assert.equal(calls.length, 0, 'oversize files never travel')
+    const oversized = collectByClass(renderBox(), 'dsh-glass-hint')
+    assert.ok(oversized.some((h) => String(h.children) === 'wall.tooLarge'), 'the error line names the cap')
+
+    // A small file uploads and the answered absolute path is written.
+    input.files = [{ name: 'ok.png', size: 1024 }]
+    input.onchange()
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0][0], '/plugins/dsh-composer-glass/wallpaper/upload')
+    assert.equal(calls[0][1].method, 'POST')
+    assert.equal(calls[0][1].headers['x-dsh-filename'], encodeURIComponent('ok.png'))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.ok(form.writes.some(([field, value]) => field === 'wallpaper_path' && value === 'C:/stored/wallpaper-9.png'))
+    // The success clears the error line.
+    const cleared = collectByClass(renderBox(), 'dsh-glass-hint')
+    assert.ok(!cleared.some((h) => String(h.children) === 'wall.tooLarge'), 'no error line after a clean upload')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+})
+
+test('client: a first install adopts the bundled default wallpaper, an existing one never asks', async () => {
+  // Fresh profile: the ready snapshot has no wallpaper fields at all, so the
+  // client probes the Host's status route and writes the answered default.
+  const form = makeForm()
+  form.publish('ready', { enabled: true })
+  const realFetch = globalThis.fetch
+  const calls = []
+  globalThis.fetch = (url) => {
+    calls.push(String(url))
+    return Promise.resolve({ ok: true, json: async () => ({ seed: true, path: 'C:/pkg/assets/wallpaper-default.png' }) })
+  }
+  try {
+    const { doc } = await loadAndApply(form)
+    assert.deepEqual(calls, ['/plugins/dsh-composer-glass/wallpaper/status'], 'exactly one status probe')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.deepEqual(form.writes, [
+      ['wallpaper_path', 'C:/pkg/assets/wallpaper-default.png'],
+      ['wallpaper_dim', 75],
+      ['wallpaper_on', true],
+    ])
+    assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'on')
+    assert.equal(doc.body.children[0].children[0].tag, 'img')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+})
+
+test('client: the seeding probe answers false for an existing install and stays silent', async () => {
+  const form = makeForm()
+  form.publish('ready', { enabled: true })
+  const realFetch = globalThis.fetch
+  globalThis.fetch = () => Promise.resolve({ ok: true, json: async () => ({ seed: false, path: 'C:/pkg/assets/wallpaper-default.png' }) })
+  try {
+    const { doc } = await loadAndApply(form)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.deepEqual(form.writes, [], 'an existing profile keeps its virgin state')
+    assert.equal(doc.attributes.get('data-dsh-wallpaper'), 'off')
+    // A configured user (on or a path on record) is never probed at all.
+    const form2 = makeForm()
+    form2.publish('ready', { enabled: true, wallpaper_on: false, wallpaper_path: 'E:/mine.jpg' })
+    const seen = []
+    globalThis.fetch = (url) => {
+      seen.push(String(url))
+      return Promise.resolve({ ok: true, json: async () => ({ seed: true, path: 'C:/pkg/assets/wallpaper-default.png' }) })
+    }
+    await loadAndApply(form2)
+    assert.deepEqual(seen, [], 'a recorded path means an existing user: no probe')
+  } finally {
+    globalThis.fetch = realFetch
+  }
 })

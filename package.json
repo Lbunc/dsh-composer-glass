@@ -13,6 +13,7 @@
   "files": [
     "lib",
     "locale",
+    "images/wallpaper-default.png",
     "images/icon.svg",
     "images/badge-dsh.svg",
     "images/01-start.webp",
