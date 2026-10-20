@@ -20,6 +20,9 @@ dist/
 # Local notes and investigation records
 docs/
 
+# Local-only git hooks (committer auto-normalization); restored manually per clone
+.githooks/
+
 # npm cache, redirected into the workspace because the system cache directory is
 # not writable in this environment. Only needed for the local `npm pack` /
 # `npm publish` dry runs.
