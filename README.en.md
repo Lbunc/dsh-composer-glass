@@ -117,7 +117,7 @@ Sidebar Plugins → Frosted Glass & Dynamic Wallpaper: the row switch toggles th
 
 | Item | Description |
 | :- | :- |
-| DSH version | ≥ 0.1.7-rc.1 (tested against 0.2.1-rc.1); 0.1.6 and older are not supported — use plugin v0.3.0+ |
+| DSH version | ≥ 0.1.7-rc.1 ; 0.1.6 and older are not supported — use plugin v0.3.0+ |
 | Platform | Frosted glass and dynamic wallpaper: both web and desktop (Harness) |
 
 ## License

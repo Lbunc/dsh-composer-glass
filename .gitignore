@@ -23,6 +23,9 @@ docs/
 # Local-only git hooks (committer auto-normalization); restored manually per clone
 .githooks/
 
+# Local-only maintenance tool (desktop app.asar hash rescan); restored manually per clone
+/scripts/rescan-desktop-hashes.mjs
+
 # npm cache, redirected into the workspace because the system cache directory is
 # not writable in this environment. Only needed for the local `npm pack` /
 # `npm publish` dry runs.
