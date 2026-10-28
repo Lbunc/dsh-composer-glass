@@ -1062,6 +1062,12 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   // The header cap gets rounded top corners (bottom edge continues into the
   // body) under both theme gates.
   assert.match(css, /\.lcKema_root\[data-expanded\] \[data-open\] \[data-disclosure-header\][^{]*\{ border-radius: 10px 10px 0 0; \}/)
+  // The compaction ("压缩") marker joins the same treatment: expanded, its
+  // button turns into a sticky header with the same opaque fill. Both builds
+  // (web `Sixlwa_` / desktop `cJsG2q_`), gated on the expanded state.
+  assert.match(css, /\.Sixlwa_compactionRow:has\(\.Sixlwa_compactionBody\) \.Sixlwa_compactionButton[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.cJsG2q_compactionRow:has\(\.cJsG2q_compactionBody\) \.cJsG2q_compactionButton[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.cJsG2q_compactionRow:has\(\.cJsG2q_compactionBody\) \.cJsG2q_compactionButton \{ border-radius: 10px 10px 0 0; \}/)
   // The plugin-manager page column frosts into one glass panel under the
   // wallpaper (its rows otherwise sit straight on the photo) — both builds.
   assert.match(css, /\.X_2TxG_page, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.fO69Vq_page \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
