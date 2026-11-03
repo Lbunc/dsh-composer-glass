@@ -328,13 +328,13 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   // build share no hashed prefix — the split is per-platform packaging, not a
   // version boundary — so each hashed surface lists its desktop counterpart
   // alongside, gated individually.
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.xz4KEq_toBottom\b/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \._2WTFBq_root\b/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.KuQXFq_card\b/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.nJdiTq_bar::before/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.V4vHZW_toBottom\b/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.A6Bq1a_root\b/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.lLdGaq_card\b/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.Gc24Bq_bar::before/)
   // A naive comma-join would leave selectors after the first ungated; every
   // listed selector must carry the gate itself.
-  assert.doesNotMatch(css, /(^|\n)[^:]+\.Dc7zOa_/)
+  assert.doesNotMatch(css, /(^|\n)[^:]+\.an3WzG_/)
   // The todo dock is one surface for both collapsed and expanded states.
   assert.match(css, /\[data-testid="todo-panel"\]::after/)
   // Nine glass surfaces (eight composer-area ones plus the sidebar column)
@@ -360,9 +360,9 @@ test('client: the shared material covers the composer, todo dock, to-bottom butt
   // (the misplaced-toggle bug). The column keeps the fixed-safe parts only:
   // transparent background (the wallpaper must show through), relative
   // positioning, the shadow bundle.
-  assert.doesNotMatch(css, /:root\[data-dsh-glass="on"\] \.(?:pI_x6G|BynINW)_sidebarCol \{[^}]*backdrop-filter/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_sidebarCol, :root\[data-dsh-glass="on"\] \.BynINW_sidebarCol \{[^}]*background: transparent !important;/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_sidebarCol::before, :root\[data-dsh-glass="on"\] \.BynINW_sidebarCol::before \{[^}]*z-index: -1;[^}]*backdrop-filter/)
+  assert.doesNotMatch(css, /:root\[data-dsh-glass="on"\] \.(?:pI_x6G|mP3x-q)_sidebarCol \{[^}]*backdrop-filter/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_sidebarCol, :root\[data-dsh-glass="on"\] \.mP3x-q_sidebarCol \{[^}]*background: transparent !important;/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.pI_x6G_sidebarCol::before, :root\[data-dsh-glass="on"\] \.mP3x-q_sidebarCol::before \{[^}]*z-index: -1;[^}]*backdrop-filter/)
   // The desktop titlebar drag strip is deliberately left shipped: it is the
   // window-caption region, and its theme fill (near-white light / near-black
   // dark) is what stays consistent with the OS-composited WCO window
@@ -400,9 +400,9 @@ test('client: the shipped chrome is restored when the preference is OFF', async 
   // Clearing the opaque chrome is part of the glass, not a permanent override:
   // ungated, it kept the message flow running to the bottom of the seat with the
   // preference OFF instead of letting the shipped fade mask it again.
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.wSkVaW_composerSeat, :root\[data-dsh-glass="on"\] \.Dc7zOa_composerSeat \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.wSkVaW_composerSeat, :root\[data-dsh-glass="on"\] \.an3WzG_composerSeat \{ background: none !important; \}/)
   assert.doesNotMatch(css, /(^|\n)\.wSkVaW_/)
-  assert.doesNotMatch(css, /(^|\n)\.Dc7zOa_/)
+  assert.doesNotMatch(css, /(^|\n)\.an3WzG_/)
 })
 
 test('client: declares configForms and remote alongside slots and locale', async () => {
@@ -603,7 +603,7 @@ test('client: global on with every group off restores the shipped chrome', async
   // down with it — otherwise the page loses its backgrounds with nothing to
   // show for the clearing.
   assert.doesNotMatch(css, /\.wSkVaW_/, 'no chrome-clearing rule may survive all groups off')
-  assert.doesNotMatch(css, /\.Dc7zOa_/, 'no desktop chrome-clearing rule may survive')
+  assert.doesNotMatch(css, /\.an3WzG_/, 'no desktop chrome-clearing rule may survive')
   assert.doesNotMatch(css, /\.pI_x6G_/, 'no wallpaper chrome may leak into a glass-only stylesheet')
   assert.doesNotMatch(css, /backdrop-filter:\s*blur\(/, 'no glass surface rule may survive')
   // The shadow variables stay: inert defaults, not chrome.
@@ -1004,31 +1004,31 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   // under the wallpaper attribute, none under the glass one.
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] body \{ background: none !important; \}/)
   // The AppFrame/inner-sidebar chrome carries BOTH platform twins (web
-  // `pI_x6G`/`hHd-Xa` + desktop `BynINW`/`_2H3hWW`) in one comma-joined rule.
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame, :root\[data-dsh-wallpaper="on"\] \.BynINW_frame \{ background: none !important; \}/)
+  // `pI_x6G`/`hHd-Xa` + desktop `mP3x-q`/`wtg9ga`) in one comma-joined rule.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame, :root\[data-dsh-wallpaper="on"\] \.mP3x-q_frame \{ background: none !important; \}/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.wSkVaW_root/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.hHd-Xa_root, :root\[data-dsh-wallpaper="on"\] \._2H3hWW_root \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.hHd-Xa_root, :root\[data-dsh-wallpaper="on"\] \.wtg9ga_root \{ background: none !important; \}/)
   // The sidebar list's built-in bottom fade (an opaque gradient toward the
   // theme fill) reads as a white band wherever we removed that fill — cleared
   // under both the wallpaper gate and the glass gate (sidebar group). A
   // blur+mask "true fade" was tried instead, but its edge scatter shows as a
   // fog band over a moving wallpaper, so fading is simply dropped. BOTH
-  // platform builds ship one — web `bhn1Oq`, desktop `_9lTDKa` (the desktop
+  // platform builds ship one — web `bhn1Oq`, desktop `GAkraW` (the desktop
   // fade lives in the session-list module, not the sidebar root).
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade, :root\[data-dsh-wallpaper="on"\] \._9lTDKa_fade \{ background: none !important; \}/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade, :root\[data-dsh-glass="on"\] \._9lTDKa_fade \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade, :root\[data-dsh-wallpaper="on"\] \.GAkraW_fade \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade, :root\[data-dsh-glass="on"\] \.GAkraW_fade \{ background: none !important; \}/)
   // Desktop-only opaque layers the wallpaper must also clear: the center
   // column (titlebar/rightbar variants paint --dsw-alias-bg-base — the white
   // slab behind the conversation and the plugin page) — and the titlebar
   // variant's 16px top-left content radius, which keeps clipping the column's
   // frosted children along an arc after the background is gone (the bare
   // wallpaper peeking through the notch reads as a phantom rounded corner).
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_centerCol, :root\[data-dsh-wallpaper="on"\] \.BynINW_centerCol \{ background: none !important; border-radius: 0 !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_centerCol, :root\[data-dsh-wallpaper="on"\] \.mP3x-q_centerCol \{ background: none !important; border-radius: 0 !important; \}/)
   // The titlebar drag strip is never cleared under the wallpaper gate — in
   // any group state: it is the window-caption region, and its shipped theme
   // fill stays consistent with the OS-composited WCO window controls.
   assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame::before/)
-  assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.BynINW_frame::before/)
+  assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.mP3x-q_frame::before/)
   // Content surfaces (new-session pill, user bubble, code blocks, inline
   // code, file cards) turn glass under the same wallpaper gate AND the glass
   // gate — they are glass features, so the master switch controls them too
@@ -1051,7 +1051,7 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.mna1RW_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.LVzXQa_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.Mbwy4a_card[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.Mbwy4a_customBlock, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.mAtvLq_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.Mbwy4a_customBlock, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.wnLwla_customBlock \{ background-color: rgba\(255, 255, 255, 0\.17\) !important; \}/)
   // The expanded reasoning row (a sticky header painting `--dsw-alias-bg-base`)
   // gets the glass material instead of the near-black slab. The frost must
   // sit on the sticky `[data-disclosure-header]` — the node that owns the
@@ -1064,18 +1064,18 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.lcKema_root\[data-expanded\] \[data-open\] \[data-disclosure-header\][^{]*\{ border-radius: 10px 10px 0 0; \}/)
   // The compaction ("压缩") marker joins the same treatment: expanded, its
   // button turns into a sticky header with the same opaque fill. Both builds
-  // (web `Sixlwa_` / desktop `cJsG2q_`), gated on the expanded state.
+  // (web `Sixlwa_` / desktop `LOmM4q_`), gated on the expanded state.
   assert.match(css, /\.Sixlwa_compactionRow:has\(\.Sixlwa_compactionBody\) \.Sixlwa_compactionButton[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
-  assert.match(css, /\.cJsG2q_compactionRow:has\(\.cJsG2q_compactionBody\) \.cJsG2q_compactionButton[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
-  assert.match(css, /\.cJsG2q_compactionRow:has\(\.cJsG2q_compactionBody\) \.cJsG2q_compactionButton \{ border-radius: 10px 10px 0 0; \}/)
+  assert.match(css, /\.LOmM4q_compactionRow:has\(\.LOmM4q_compactionBody\) \.LOmM4q_compactionButton[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.LOmM4q_compactionRow:has\(\.LOmM4q_compactionBody\) \.LOmM4q_compactionButton \{ border-radius: 10px 10px 0 0; \}/)
   // The plugin-manager page column frosts into one glass panel under the
   // wallpaper (its rows otherwise sit straight on the photo) — both builds.
-  assert.match(css, /\.X_2TxG_page, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.fO69Vq_page \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.X_2TxG_page, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.V7pFBG_page \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // The sidebar column keeps its tinted glass (the sidebar group is on by
   // default), so the wallpaper section must NOT clear it — the two rules
   // would fight and the later one would strip the tint.
   assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_sidebarCol/)
-  assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.BynINW_sidebarCol/)
+  assert.doesNotMatch(css, /:root\[data-dsh-wallpaper="on"\] \.mP3x-q_sidebarCol/)
 })
 
 test('client: wallpaper with the sidebar group off clears the column', async () => {
@@ -1092,7 +1092,7 @@ test('client: wallpaper with the sidebar group off clears the column', async () 
   // With the sidebar glass group off there is no frost rule to fight: the
   // column falls back to bare wallpaper under the wallpaper gate (the
   // titlebar strip stays shipped in every group state).
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_sidebarCol, :root\[data-dsh-wallpaper="on"\] \.BynINW_sidebarCol \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_sidebarCol, :root\[data-dsh-wallpaper="on"\] \.mP3x-q_sidebarCol \{ background: none !important; \}/)
   assert.doesNotMatch(css, /_frame::before/)
 })
 
