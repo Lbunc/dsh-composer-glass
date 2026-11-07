@@ -25,6 +25,7 @@ docs/
 
 # Local-only maintenance tool (desktop app.asar hash rescan); restored manually per clone
 /scripts/rescan-desktop-hashes.mjs
+/.compat-baseline.json
 
 # npm cache, redirected into the workspace because the system cache directory is
 # not writable in this environment. Only needed for the local `npm pack` /

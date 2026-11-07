@@ -1037,7 +1037,7 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   // blocks additionally get their paint variables pinned to transparent so
   // the shiki <pre> and the sticky banner clear with the card.
   assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.md-code-block[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
-  assert.match(css, /\.Sixlwa_bubble[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\[data-message-bubble\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /\.nyYjTG_file[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   assert.match(css, /--dsl-code-block-background: transparent/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] code:not\(pre code\) \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
@@ -1111,7 +1111,7 @@ test('client: the dialogs group owns the approval and ask cards', async () => {
   assert.doesNotMatch(css, /\.LVzXQa_card/, 'dialogs off removes the question card rule')
   assert.doesNotMatch(css, /\.Mbwy4a_customBlock/, 'dialogs off removes the nested answer block rule')
   // The content surfaces are the content group's business and stay on.
-  assert.match(css, /\.Sixlwa_bubble[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\[data-message-bubble\][^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
 })
 
 test('client: a video wallpaper mounts a looping muted video element', async () => {
