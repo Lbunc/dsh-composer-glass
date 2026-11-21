@@ -1008,15 +1008,15 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.pI_x6G_frame, :root\[data-dsh-wallpaper="on"\] \.mP3x-q_frame \{ background: none !important; \}/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.wSkVaW_root/)
   assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.hHd-Xa_root, :root\[data-dsh-wallpaper="on"\] \.wtg9ga_root \{ background: none !important; \}/)
-  // The sidebar list's built-in bottom fade (an opaque gradient toward the
+  // The sidebar's built-in bottom fade (an opaque gradient toward the
   // theme fill) reads as a white band wherever we removed that fill — cleared
   // under both the wallpaper gate and the glass gate (sidebar group). A
   // blur+mask "true fade" was tried instead, but its edge scatter shows as a
-  // fog band over a moving wallpaper, so fading is simply dropped. BOTH
-  // platform builds ship one — web `bhn1Oq`, desktop `GAkraW` (the desktop
-  // fade lives in the session-list module, not the sidebar root).
-  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade, :root\[data-dsh-wallpaper="on"\] \.GAkraW_fade \{ background: none !important; \}/)
-  assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade, :root\[data-dsh-glass="on"\] \.GAkraW_fade \{ background: none !important; \}/)
+  // fog band over a moving wallpaper, so fading is simply dropped. 0.2.2-rc.3
+  // moved the strip into the sidebar root module as `scrollFade`; the old
+  // list-module names (`bhn1Oq`/`GAkraW`) remain as inert guards.
+  assert.match(css, /:root\[data-dsh-wallpaper="on"\] \.bhn1Oq_fade, :root\[data-dsh-wallpaper="on"\] \.GAkraW_fade, :root\[data-dsh-wallpaper="on"\] \.hHd-Xa_scrollFade, :root\[data-dsh-wallpaper="on"\] \.wtg9ga_scrollFade \{ background: none !important; \}/)
+  assert.match(css, /:root\[data-dsh-glass="on"\] \.bhn1Oq_fade, :root\[data-dsh-glass="on"\] \.GAkraW_fade, :root\[data-dsh-glass="on"\] \.hHd-Xa_scrollFade, :root\[data-dsh-glass="on"\] \.wtg9ga_scrollFade \{ background: none !important; \}/)
   // Desktop-only opaque layers the wallpaper must also clear: the center
   // column (titlebar/rightbar variants paint --dsw-alias-bg-base — the white
   // slab behind the conversation and the plugin page) — and the titlebar
@@ -1070,7 +1070,19 @@ test('client: a stored image wallpaper paints the layer and clears the window ch
   assert.match(css, /\.LOmM4q_compactionRow:has\(\.LOmM4q_compactionBody\) \.LOmM4q_compactionButton \{ border-radius: 10px 10px 0 0; \}/)
   // The plugin-manager page column frosts into one glass panel under the
   // wallpaper (its rows otherwise sit straight on the photo) — both builds.
-  assert.match(css, /\.X_2TxG_page, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.V7pFBG_page \{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.X_2TxG_page, :root\[data-dsh-wallpaper="on"\]\[data-dsh-glass="on"\] \.V7pFBG_page[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // The plugin page's sticky header strip (0.2.2-rc.1) masks the rows under it
+  // with a `::before` painting --dsw-alias-bg-base at full strength; the page
+  // frost never reached that pseudo, so the whole header band stayed an opaque
+  // white slab over the wallpaper. It joins the same content frost — both
+  // platform builds, same material.
+  assert.match(css, /\.X_2TxG_pageBar\[data-natural\]::before[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.V7pFBG_pageBar\[data-natural\]::before[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  // The automation-tasks page root paints an opaque --dsw-alias-bg-base panel
+  // across the whole content column (no sticky header pseudo on this page),
+  // so the root itself joins the same content frost — both builds.
+  assert.match(css, /\.t-XoWW_page[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
+  assert.match(css, /\.olCj9W_page[^{]*\{[^}]*rgba\(255, 255, 255, 0\.17\)/)
   // The sidebar column keeps its tinted glass (the sidebar group is on by
   // default), so the wallpaper section must NOT clear it — the two rules
   // would fight and the later one would strip the tint.
